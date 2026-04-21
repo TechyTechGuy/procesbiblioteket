@@ -5,6 +5,13 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import Index from "./pages/Index.tsx";
 import NotFound from "./pages/NotFound.tsx";
+import UploadImprove from "./pages/UploadImprove";
+import Library from "./pages/Library";
+import ProcessDetail from "./pages/ProcessDetail";
+import Knowledge from "./pages/Knowledge";
+import Admin from "./pages/Admin";
+import { StoreProvider } from "./lib/store";
+import { AppLayout } from "./components/layout/AppLayout";
 
 const queryClient = new QueryClient();
 
@@ -14,11 +21,19 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+        <StoreProvider>
+          <AppLayout>
+            <Routes>
+              <Route path="/" element={<Index />} />
+              <Route path="/upload" element={<UploadImprove />} />
+              <Route path="/library" element={<Library />} />
+              <Route path="/process/:id" element={<ProcessDetail />} />
+              <Route path="/knowledge" element={<Knowledge />} />
+              <Route path="/admin" element={<Admin />} />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </AppLayout>
+        </StoreProvider>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
