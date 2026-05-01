@@ -12,7 +12,7 @@ import {
   SidebarHeader,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { useStore } from "@/lib/store";
+import { useAuth } from "@/lib/auth";
 
 const items = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
@@ -25,7 +25,7 @@ const adminItems = [{ title: "Brugere & adgang", url: "/admin", icon: Users }];
 export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
-  const { currentUser } = useStore();
+  const { isAdmin } = useAuth();
 
   return (
     <Sidebar collapsible="icon">
@@ -61,7 +61,7 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {currentUser.role === "Admin" && (
+        {isAdmin && (
           <SidebarGroup>
             <SidebarGroupLabel>Administration</SidebarGroupLabel>
             <SidebarGroupContent>

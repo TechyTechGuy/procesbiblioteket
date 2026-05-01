@@ -1,19 +1,21 @@
 import { ReactNode } from "react";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "./AppSidebar";
-import { useStore } from "@/lib/store";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { useAuth } from "@/lib/auth";
 import { Badge } from "@/components/ui/badge";
-import { ShieldCheck } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { ShieldCheck, LogOut } from "lucide-react";
+import { ROLE_LABEL } from "@/lib/types";
+import { useNavigate } from "react-router-dom";
 
 export function AppLayout({ children }: { children: ReactNode }) {
-  const { currentUser, setCurrentUser, users } = useStore();
+  const { profile, role, signOut, myDepartmentName } = useAuth();
+  const navigate = useNavigate();
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate("/auth");
+  };
 
   return (
     <SidebarProvider>
@@ -28,29 +30,20 @@ export function AppLayout({ children }: { children: ReactNode }) {
               </span>
             </div>
             <div className="flex items-center gap-2">
-              <Badge variant="outline" className="gap-1">
-                <ShieldCheck className="h-3 w-3" />
-                {currentUser.role}
-              </Badge>
-              <span className="text-xs text-muted-foreground hidden md:inline">View as:</span>
-              <Select
-                value={currentUser.id}
-                onValueChange={(id) => {
-                  const u = users.find((x) => x.id === id);
-                  if (u) setCurrentUser(u);
-                }}
-              >
-                <SelectTrigger className="h-8 w-[180px] text-xs">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {users.map((u) => (
-                    <SelectItem key={u.id} value={u.id} className="text-xs">
-                      {u.name} · {u.role} · {u.department}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              {role && (
+                <Badge variant="outline" className="gap-1">
+                  <ShieldCheck className="h-3 w-3" />
+                  {ROLE_LABEL[role]}
+                </Badge>
+              )}
+              <span className="text-xs text-muted-foreground hidden md:inline">
+                {profile?.full_name}
+                {myDepartmentName && ` · ${myDepartmentName}`}
+              </span>
+              <Button variant="ghost" size="sm" onClick={handleSignOut}>
+                <LogOut className="h-4 w-4 sm:mr-1" />
+                <span className="hidden sm:inline">Log ud</span>
+              </Button>
             </div>
           </header>
           <main className="flex-1 p-4 md:p-6">{children}</main>
