@@ -14,16 +14,265 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      departments: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
+      knowledge_items: {
+        Row: {
+          active: boolean
+          content: string
+          created_at: string
+          department_id: string | null
+          id: string
+          title: string
+          type: string
+        }
+        Insert: {
+          active?: boolean
+          content: string
+          created_at?: string
+          department_id?: string | null
+          id?: string
+          title: string
+          type: string
+        }
+        Update: {
+          active?: boolean
+          content?: string
+          created_at?: string
+          department_id?: string | null
+          id?: string
+          title?: string
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "knowledge_items_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      process_versions: {
+        Row: {
+          ai_generated: boolean
+          content: string
+          created_at: string
+          created_by_id: string | null
+          created_by_name: string
+          id: string
+          notes: string | null
+          process_id: string
+        }
+        Insert: {
+          ai_generated?: boolean
+          content: string
+          created_at?: string
+          created_by_id?: string | null
+          created_by_name?: string
+          id?: string
+          notes?: string | null
+          process_id: string
+        }
+        Update: {
+          ai_generated?: boolean
+          content?: string
+          created_at?: string
+          created_by_id?: string | null
+          created_by_name?: string
+          id?: string
+          notes?: string | null
+          process_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "process_versions_process_id_fkey"
+            columns: ["process_id"]
+            isOneToOne: false
+            referencedRelation: "processes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      processes: {
+        Row: {
+          content: string
+          created_at: string
+          department_id: string
+          id: string
+          owner_id: string | null
+          owner_name: string
+          quality_score: number
+          status: Database["public"]["Enums"]["process_status"]
+          tags: string[]
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          content?: string
+          created_at?: string
+          department_id: string
+          id?: string
+          owner_id?: string | null
+          owner_name?: string
+          quality_score?: number
+          status?: Database["public"]["Enums"]["process_status"]
+          tags?: string[]
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          department_id?: string
+          id?: string
+          owner_id?: string | null
+          owner_name?: string
+          quality_score?: number
+          status?: Database["public"]["Enums"]["process_status"]
+          tags?: string[]
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "processes_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          department_id: string | null
+          email: string | null
+          full_name: string
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          department_id?: string | null
+          email?: string | null
+          full_name?: string
+          id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          department_id?: string | null
+          email?: string | null
+          full_name?: string
+          id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profiles_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      uploads: {
+        Row: {
+          created_at: string
+          created_by: string
+          department_id: string | null
+          file_path: string | null
+          id: string
+          original_text: string | null
+          title: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          department_id?: string | null
+          file_path?: string | null
+          id?: string
+          original_text?: string | null
+          title?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          department_id?: string | null
+          file_path?: string | null
+          id?: string
+          original_text?: string | null
+          title?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "uploads_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      can_edit: { Args: { _user_id: string }; Returns: boolean }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      user_department: { Args: { _user_id: string }; Returns: string }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "process_owner" | "editor" | "viewer"
+      process_status: "Draft" | "In Review" | "Published" | "Archived"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +399,9 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "process_owner", "editor", "viewer"],
+      process_status: ["Draft", "In Review", "Published", "Archived"],
+    },
   },
 } as const
