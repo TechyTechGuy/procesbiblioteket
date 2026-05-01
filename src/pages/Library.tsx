@@ -1,42 +1,58 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useStore } from "@/lib/store";
-import { Search, Lock } from "lucide-react";
+import { useAuth } from "@/lib/auth";
+import { Search } from "lucide-react";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Link } from "react-router-dom";
 import { QualityMeter } from "@/components/QualityMeter";
+import { supabase } from "@/integrations/supabase/client";
+import { Status, STATUSES } from "@/lib/types";
+
+interface Row {
+  id: string;
+  title: string;
+  content: string;
+  status: Status;
+  owner_name: string;
+  tags: string[];
+  quality_score: number;
+  department_id: string;
+}
 
 export default function Library() {
-  const { processes, canSee, departments, currentUser } = useStore();
+  const { departments, isAdmin, myDepartmentName } = useAuth();
+  const [rows, setRows] = useState<Row[]>([]);
   const [q, setQ] = useState("");
   const [dept, setDept] = useState<string>("all");
   const [status, setStatus] = useState<string>("all");
 
+  useEffect(() => {
+    supabase
+      .from("processes")
+      .select("id, title, content, status, owner_name, tags, quality_score, department_id")
+      .order("updated_at", { ascending: false })
+      .then(({ data }) => setRows((data as Row[]) ?? []));
+  }, []);
+
   const filtered = useMemo(() => {
-    return processes
-      .filter(canSee)
-      .filter((p) => (dept === "all" ? true : p.department === dept))
+    return rows
+      .filter((p) => (dept === "all" ? true : p.department_id === dept))
       .filter((p) => (status === "all" ? true : p.status === status))
       .filter((p) => (q ? (p.title + p.tags.join(" ") + p.content).toLowerCase().includes(q.toLowerCase()) : true));
-  }, [processes, q, dept, status, canSee]);
+  }, [rows, q, dept, status]);
 
-  const hidden = processes.length - processes.filter(canSee).length;
+  const deptName = (id: string) => departments.find((d) => d.id === id)?.name ?? "—";
 
   return (
     <div className="space-y-6 max-w-6xl">
       <div>
         <h1 className="text-2xl font-bold">Procesbibliotek</h1>
         <p className="text-sm text-muted-foreground">
-          {currentUser.role === "Admin"
+          {isAdmin
             ? "Du ser alle processer på tværs af afdelinger."
-            : `Du ser processer i din afdeling (${currentUser.department}).`}
-          {hidden > 0 && currentUser.role !== "Admin" && (
-            <span className="ml-2 inline-flex items-center gap-1 text-xs text-warning">
-              <Lock className="h-3 w-3" />{hidden} skjult af adgangskontrol
-            </span>
-          )}
+            : `Du ser processer i din afdeling (${myDepartmentName ?? "ingen tildelt"}).`}
         </p>
       </div>
 
@@ -49,14 +65,14 @@ export default function Library() {
           <SelectTrigger className="sm:w-[180px]"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Alle afdelinger</SelectItem>
-            {departments.map((d) => <SelectItem key={d} value={d}>{d}</SelectItem>)}
+            {departments.map((d) => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
           </SelectContent>
         </Select>
         <Select value={status} onValueChange={setStatus}>
           <SelectTrigger className="sm:w-[160px]"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Alle statusser</SelectItem>
-            {["Draft", "In Review", "Published", "Archived"].map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+            {STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
           </SelectContent>
         </Select>
       </div>
@@ -72,10 +88,10 @@ export default function Library() {
                 </div>
                 <p className="text-xs text-muted-foreground line-clamp-2">{p.content}</p>
                 <div className="flex justify-between text-xs text-muted-foreground">
-                  <span>{p.department}</span>
-                  <span>{p.owner}</span>
+                  <span>{deptName(p.department_id)}</span>
+                  <span>{p.owner_name}</span>
                 </div>
-                <QualityMeter score={p.qualityScore} />
+                <QualityMeter score={p.quality_score} />
               </CardContent>
             </Card>
           </Link>
