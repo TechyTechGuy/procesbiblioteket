@@ -8,7 +8,6 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Workflow } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 
 export default function Auth() {
@@ -73,10 +72,10 @@ export default function Auth() {
     <div className="min-h-screen flex items-center justify-center bg-gradient-subtle p-4">
       <Card className="w-full max-w-md shadow-elegant">
         <CardHeader className="text-center">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-lg bg-gradient-primary text-primary-foreground shadow-elegant mb-2">
-            <Workflow className="h-6 w-6" />
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-[10px] shadow-elegant mb-2" style={{ backgroundColor: "#0F172A" }}>
+            <span className="text-xl font-bold leading-none" style={{ color: "#E5E7EB", fontFamily: "Inter, system-ui, Arial, sans-serif" }}>PB</span>
           </div>
-          <CardTitle>ProcessOps</CardTitle>
+          <CardTitle>ProcesBiblioteket</CardTitle>
           <CardDescription>Log ind eller opret konto</CardDescription>
         </CardHeader>
         <CardContent>

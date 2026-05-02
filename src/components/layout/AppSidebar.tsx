@@ -36,7 +36,7 @@ export function AppSidebar() {
           </div>
           {!collapsed && (
             <div className="flex flex-col">
-              <span className="text-sm font-semibold">ProcessOps</span>
+              <span className="text-sm font-semibold">ProcesBiblioteket</span>
               <span className="text-xs text-muted-foreground">Processtyring</span>
             </div>
           )}
