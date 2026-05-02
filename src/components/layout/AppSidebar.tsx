@@ -1,4 +1,4 @@
-import { LayoutDashboard, Upload, Library, Users, BookOpen, Workflow } from "lucide-react";
+import { LayoutDashboard, Upload, Library, Users, BookOpen } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import {
   Sidebar,
@@ -31,8 +31,8 @@ export function AppSidebar() {
     <Sidebar collapsible="icon">
       <SidebarHeader className="border-b border-sidebar-border">
         <div className="flex items-center gap-2 px-2 py-3">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-primary text-primary-foreground shadow-elegant">
-            <Workflow className="h-4 w-4" />
+          <div className="flex h-8 w-8 items-center justify-center rounded-[10px] shadow-elegant" style={{ backgroundColor: "#0F172A" }}>
+            <span className="text-[14px] font-bold leading-none" style={{ color: "#E5E7EB", fontFamily: "Inter, system-ui, Arial, sans-serif" }}>PB</span>
           </div>
           {!collapsed && (
             <div className="flex flex-col">
