@@ -6,12 +6,22 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { StatusBadge } from "@/components/StatusBadge";
 import { QualityMeter } from "@/components/QualityMeter";
-import { ArrowLeft, Lock, Save, History } from "lucide-react";
+import { ArrowLeft, Lock, Save, History, Copy, FileText, Pencil, Eye, X } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Status, STATUSES } from "@/lib/types";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+
+const proseClasses =
+  "prose prose-sm max-w-none dark:prose-invert rounded-md border bg-background p-4 " +
+  "[&_table]:w-full [&_table]:border-collapse [&_table]:my-2 " +
+  "[&_th]:border [&_th]:border-border [&_th]:bg-muted [&_th]:px-2 [&_th]:py-1 [&_th]:text-left " +
+  "[&_td]:border [&_td]:border-border [&_td]:px-2 [&_td]:py-1 " +
+  "[&_h1]:text-base [&_h2]:text-sm [&_h3]:text-sm [&_h1]:font-bold [&_h2]:font-semibold [&_h3]:font-semibold " +
+  "[&_pre]:bg-muted [&_pre]:p-2 [&_pre]:rounded";
 
 interface ProcessRow {
   id: string; title: string; content: string; status: Status; owner_name: string;
@@ -32,6 +42,8 @@ export default function ProcessDetail() {
   const [status, setStatus] = useState<Status>("Draft");
   const [notFound, setNotFound] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [isEditing, setIsEditing] = useState(false);
+  const contentRef = useRef<HTMLDivElement | null>(null);
 
   const load = async () => {
     if (!id) return;
@@ -80,7 +92,23 @@ export default function ProcessDetail() {
     });
     if (vErr) { toast.error(vErr.message); return; }
     toast.success("Gemt som ny version");
+    setIsEditing(false);
     load();
+  };
+
+  const copyMarkdown = () => {
+    navigator.clipboard.writeText(content).then(() => toast.success("Markdown kopieret"));
+  };
+
+  const copyAsText = () => {
+    const el = contentRef.current;
+    const text = el ? (el.innerText || el.textContent || content) : content;
+    navigator.clipboard.writeText(text).then(() => toast.success("Tekst kopieret"));
+  };
+
+  const cancelEdit = () => {
+    setContent(process?.content ?? "");
+    setIsEditing(false);
   };
 
   return (
@@ -111,21 +139,69 @@ export default function ProcessDetail() {
                 <Lock className="h-3 w-3" />Du har kun læseadgang.
               </p>
             )}
-            <Textarea value={content} onChange={(e) => setContent(e.target.value)} rows={20} className="font-mono text-xs" disabled={!editable} />
-            {editable && (
-              <div className="flex flex-col sm:flex-row gap-2 sm:items-center sm:justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm">Status:</span>
-                  <Select value={status} onValueChange={(v) => setStatus(v as Status)}>
-                    <SelectTrigger className="w-[160px] h-9"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <Button onClick={save}><Save className="mr-2 h-4 w-4" />Gem ny version</Button>
+            {isEditing ? (
+              <Textarea
+                value={content}
+                onChange={(e) => setContent(e.target.value)}
+                rows={20}
+                className="font-mono text-xs"
+                disabled={!editable}
+              />
+            ) : (
+              <div ref={contentRef} className={proseClasses + " max-h-[600px] overflow-auto"}>
+                {content.trim() ? (
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
+                ) : (
+                  <p className="text-sm text-muted-foreground italic">Intet indhold endnu.</p>
+                )}
               </div>
             )}
+
+            <div className="flex flex-col sm:flex-row gap-2 sm:items-center sm:justify-between">
+              <div className="flex items-center gap-2 flex-wrap">
+                {editable && (
+                  <>
+                    <span className="text-sm">Status:</span>
+                    <Select value={status} onValueChange={(v) => setStatus(v as Status)}>
+                      <SelectTrigger className="w-[160px] h-9"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </>
+                )}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {!isEditing && (
+                  <>
+                    <Button size="sm" variant="outline" onClick={copyMarkdown}>
+                      <Copy className="mr-2 h-3 w-3" />Kopier markdown
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={copyAsText}>
+                      <FileText className="mr-2 h-3 w-3" />Kopier som tekst
+                    </Button>
+                    {editable && (
+                      <Button size="sm" onClick={() => setIsEditing(true)}>
+                        <Pencil className="mr-2 h-3 w-3" />Rediger
+                      </Button>
+                    )}
+                  </>
+                )}
+                {isEditing && editable && (
+                  <>
+                    <Button size="sm" variant="ghost" onClick={cancelEdit}>
+                      <X className="mr-2 h-3 w-3" />Annullér
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => setIsEditing(false)}>
+                      <Eye className="mr-2 h-3 w-3" />Forhåndsvis
+                    </Button>
+                    <Button size="sm" onClick={save}>
+                      <Save className="mr-2 h-3 w-3" />Gem ny version
+                    </Button>
+                  </>
+                )}
+              </div>
+            </div>
           </CardContent></Card>
         </TabsContent>
 
@@ -138,6 +214,9 @@ export default function ProcessDetail() {
                   <span className="text-xs text-muted-foreground">{new Date(v.created_at).toLocaleString("da-DK")}</span>
                 </div>
                 <p className="text-xs text-muted-foreground">{v.created_by_name} — {v.notes}</p>
+                <div className={proseClasses + " mt-2 max-h-[400px] overflow-auto"}>
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{v.content}</ReactMarkdown>
+                </div>
               </div>
             ))}
             {versions.length === 0 && <p className="py-6 text-center text-sm text-muted-foreground">Ingen versioner endnu.</p>}
