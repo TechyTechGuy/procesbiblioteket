@@ -13,8 +13,8 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import mammoth from "mammoth";
 import TurndownService from "turndown";
-// @ts-expect-error - no types
-import { gfm } from "turndown-plugin-gfm";
+// turndown-plugin-gfm has no types
+const { gfm } = require("turndown-plugin-gfm") as { gfm: TurndownService.Plugin };
 
 export default function UploadImprove() {
   const { departments, profile, canEdit, isAdmin } = useAuth();
