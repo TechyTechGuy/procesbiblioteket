@@ -28,6 +28,19 @@ export default function UploadImprove() {
   const [isDragging, setIsDragging] = useState(false);
   const [extractedImages, setExtractedImages] = useState<{ name: string; dataUrl: string }[]>([]);
 
+  // Shared HTML -> Markdown converter (preserves tables, headings, images)
+  const htmlToMarkdown = (html: string) => {
+    const td = new TurndownService({
+      headingStyle: "atx",
+      codeBlockStyle: "fenced",
+      bulletListMarker: "-",
+    });
+    td.use((turndownGfm as any).gfm);
+    return td.turndown(html);
+  };
+
+  const looksLikeHtml = (s: string) => /<\/?(table|tr|td|th|tbody|thead|p|div|span|h[1-6]|ul|ol|li|img|br)\b/i.test(s);
+
   useEffect(() => {
     supabase.from("knowledge_items").select("id", { count: "exact", head: true }).eq("active", true)
       .then(({ count }) => setKnowledgeCount(count ?? 0));
@@ -56,14 +69,7 @@ export default function UploadImprove() {
             }),
           }
         );
-        const td = new TurndownService({
-          headingStyle: "atx",
-          codeBlockStyle: "fenced",
-          bulletListMarker: "-",
-        });
-        td.use((turndownGfm as any).gfm);
-        // Keep images as markdown but with shorter alt text (data URLs are huge but preserved)
-        const markdown = td.turndown(result.value);
+        const markdown = htmlToMarkdown(result.value);
         setDraft(markdown);
         setExtractedImages(images);
         if (images.length > 0) {
@@ -73,9 +79,15 @@ export default function UploadImprove() {
         }
       } else if (name.endsWith(".doc")) {
         toast.error("Gamle .doc-filer understøttes ikke. Gem som .docx.");
+      } else if (name.endsWith(".html") || name.endsWith(".htm")) {
+        const text = await f.text();
+        setDraft(htmlToMarkdown(text));
+        setExtractedImages([]);
+        toast.success("HTML-dokument konverteret til markdown");
       } else {
         const text = await f.text();
-        setDraft(text);
+        // If a .txt/.md happens to contain HTML markup (e.g. pasted from Word/web), convert it
+        setDraft(looksLikeHtml(text) ? htmlToMarkdown(text) : text);
         setExtractedImages([]);
       }
     } catch (err: any) {
@@ -87,8 +99,32 @@ export default function UploadImprove() {
     e.preventDefault();
     setIsDragging(false);
     const f = e.dataTransfer.files?.[0];
-    if (f) handleFile(f);
+    if (f) { handleFile(f); return; }
+    // Support dragging selected HTML/text from a browser or Word web
+    const html = e.dataTransfer.getData("text/html");
+    const plain = e.dataTransfer.getData("text/plain");
+    if (html) {
+      setDraft(htmlToMarkdown(html));
+      toast.success("HTML indsat og konverteret til markdown");
+    } else if (plain) {
+      setDraft(looksLikeHtml(plain) ? htmlToMarkdown(plain) : plain);
+    }
   }, []);
+
+  const onPasteDraft = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const html = e.clipboardData.getData("text/html");
+    if (html && looksLikeHtml(html)) {
+      e.preventDefault();
+      const md = htmlToMarkdown(html);
+      // Insert at cursor position
+      const ta = e.currentTarget;
+      const start = ta.selectionStart ?? draft.length;
+      const end = ta.selectionEnd ?? draft.length;
+      const next = draft.slice(0, start) + md + draft.slice(end);
+      setDraft(next);
+      toast.success("HTML konverteret til markdown ved indsætning");
+    }
+  };
 
   const improve = () => {
     if (!draft.trim()) { toast.error("Tilføj først et udkast"); return; }
@@ -205,11 +241,11 @@ export default function UploadImprove() {
                 <Input
                   id="file"
                   type="file"
-                  accept=".txt,.md,.docx"
+                  accept=".txt,.md,.docx,.html,.htm"
                   onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
                 />
                 <p className="mt-2 text-muted-foreground">
-                  Træk og slip .docx, .txt eller .md filer her
+                  Træk og slip .docx, .html, .txt eller .md filer her (eller indsæt HTML i tekstfeltet)
                 </p>
                 {file && (
                   <p className="mt-1 text-success">Valgt: {file.name}</p>
@@ -226,7 +262,7 @@ export default function UploadImprove() {
                 </div>
               </div>
             )}
-            <Textarea value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="Indsæt dit procesudkast her..." rows={12} className="font-mono text-xs" />
+            <Textarea value={draft} onChange={(e) => setDraft(e.target.value)} onPaste={onPasteDraft} placeholder="Indsæt dit procesudkast her (HTML fra Word/web konverteres automatisk)..." rows={12} className="font-mono text-xs" />
             <Button onClick={improve} className="w-full bg-gradient-primary hover:opacity-90 transition-smooth">
               <Wand2 className="mr-2 h-4 w-4" />Forbedr forslag
             </Button>
