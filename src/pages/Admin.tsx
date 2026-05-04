@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from "@/components/ui/alert-dialog";
 import { useAuth } from "@/lib/auth";
 import { Role, ROLES, ROLE_LABEL } from "@/lib/types";
-import { Plus, Trash2, ShieldCheck, Lock } from "lucide-react";
+import { Plus, Trash2, ShieldCheck, Lock, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -40,7 +40,7 @@ export default function Admin() {
   const [pendingDelete, setPendingDelete] = useState<UserRow | null>(null);
 
   const loadUsers = async () => {
-    const { data: profs } = await supabase.from("profiles").select("id, full_name, email, department_id");
+    const { data: profs } = await supabase.from("profiles").select("id, full_name, email, department_id, deleted_at");
     const { data: roles } = await supabase.from("user_roles").select("user_id, role");
     const order: Role[] = ["admin", "process_owner", "editor", "viewer"];
     const rows: UserRow[] = (profs ?? []).map((p) => {
@@ -52,7 +52,7 @@ export default function Admin() {
         email: p.email,
         department_id: p.department_id,
         role: top,
-        deleted_at: (p as any).deleted_at ?? null,
+        deleted_at: p.deleted_at ?? null,
       };
     });
     setUsers(rows);
@@ -90,25 +90,19 @@ export default function Admin() {
     if (!newName.trim() || !newEmail.trim()) return;
     setCreating(true);
 
-    // Invite user via Supabase Auth (sends email invite)
-    const { data, error } = await supabase.auth.admin.inviteUserByEmail(newEmail.trim(), {
-      data: { full_name: newName.trim() },
+    const { data, error } = await supabase.functions.invoke("admin-invite-user", {
+      body: {
+        email: newEmail.trim(),
+        full_name: newName.trim(),
+        role: newRole,
+        department_id: newDeptId || null,
+      },
     });
 
-    if (error) {
-      toast.error(error.message);
+    if (error || (data && (data as any).error)) {
+      toast.error(error?.message || (data as any)?.error || "Kunne ikke invitere bruger");
       setCreating(false);
       return;
-    }
-
-    const userId = data.user?.id;
-    if (userId) {
-      // Set department
-      if (newDeptId) {
-        await supabase.from("profiles").update({ department_id: newDeptId, full_name: newName.trim() }).eq("id", userId);
-      }
-      // Set role
-      await supabase.from("user_roles").insert({ user_id: userId, role: newRole });
     }
 
     toast.success(`Invitation sendt til ${newEmail}`);
@@ -124,12 +118,23 @@ export default function Admin() {
   // ---- Soft delete ----
   const handleSoftDelete = async (u: UserRow) => {
     const now = new Date().toISOString();
-    const { error } = await supabase.from("profiles").update({ deleted_at: now } as any).eq("id", u.id);
+    const { error } = await supabase.from("profiles").update({ deleted_at: now }).eq("id", u.id);
     if (error) { toast.error(error.message); return; }
     // Fjern alle roller så brugeren mister adgang
     await supabase.from("user_roles").delete().eq("user_id", u.id);
     setUsers((arr) => arr.map((x) => x.id === u.id ? { ...x, deleted_at: now, role: null } : x));
     toast.success(`${u.full_name} er deaktiveret`);
+  };
+
+  // ---- Reactivate ----
+  const handleReactivate = async (u: UserRow) => {
+    const { error } = await supabase.from("profiles").update({ deleted_at: null }).eq("id", u.id);
+    if (error) { toast.error(error.message); return; }
+    await supabase.from("user_roles").delete().eq("user_id", u.id);
+    const { error: rErr } = await supabase.from("user_roles").insert({ user_id: u.id, role: "viewer" });
+    if (rErr) { toast.error(rErr.message); return; }
+    setUsers((arr) => arr.map((x) => x.id === u.id ? { ...x, deleted_at: null, role: "viewer" } : x));
+    toast.success(`${u.full_name} er genaktiveret som Viewer`);
   };
 
   // ---- Hard delete ----
@@ -226,6 +231,17 @@ export default function Admin() {
                         </Select>
                       </TableCell>
                       <TableCell className="text-right">
+                        {isSoftDeleted(u) && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-muted-foreground hover:text-primary"
+                            onClick={() => handleReactivate(u)}
+                            title="Fortryd deaktivering"
+                          >
+                            <RotateCcw className="h-4 w-4" />
+                          </Button>
+                        )}
                         <Button
                           variant="ghost"
                           size="icon"
