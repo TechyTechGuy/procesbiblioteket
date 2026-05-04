@@ -61,7 +61,7 @@ export default function UploadImprove() {
           codeBlockStyle: "fenced",
           bulletListMarker: "-",
         });
-        td.use(gfm);
+        td.use((turndownGfm as any).gfm);
         // Keep images as markdown but with shorter alt text (data URLs are huge but preserved)
         const markdown = td.turndown(result.value);
         setDraft(markdown);
