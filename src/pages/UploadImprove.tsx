@@ -195,9 +195,6 @@ export default function UploadImprove() {
     }
   };
 
-  const improve = () => {
-  };
-
   const improveWithClaude = async () => {
     const sourceDoc = (draft && draft.trim()) || claudeOutput;
     if (!sourceDoc.trim()) { toast.error("Tilføj først et udkast eller upload et dokument"); return; }
