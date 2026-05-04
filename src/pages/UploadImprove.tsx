@@ -12,9 +12,12 @@ import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import mammoth from "mammoth";
+import TurndownService from "turndown";
+// @ts-expect-error - no types
+import { gfm } from "turndown-plugin-gfm";
 
 export default function UploadImprove() {
-  const { departments, profile, canEdit } = useAuth();
+  const { departments, profile, canEdit, isAdmin } = useAuth();
   const navigate = useNavigate();
   const [title, setTitle] = useState("");
   const [departmentId, setDepartmentId] = useState<string>("");
@@ -54,16 +57,21 @@ export default function UploadImprove() {
             }),
           }
         );
-        const textResult = await mammoth.extractRawText({ arrayBuffer });
-        setDraft(textResult.value);
+        const td = new TurndownService({
+          headingStyle: "atx",
+          codeBlockStyle: "fenced",
+          bulletListMarker: "-",
+        });
+        td.use(gfm);
+        // Keep images as markdown but with shorter alt text (data URLs are huge but preserved)
+        const markdown = td.turndown(result.value);
+        setDraft(markdown);
         setExtractedImages(images);
         if (images.length > 0) {
           toast.success(`Word-dokument indlæst (${images.length} billede(r) fundet)`);
         } else {
           toast.success("Word-dokument indlæst");
         }
-        // store html for potential later use (not currently shown)
-        void result;
       } else if (name.endsWith(".doc")) {
         toast.error("Gamle .doc-filer understøttes ikke. Gem som .docx.");
       } else {
@@ -91,7 +99,20 @@ export default function UploadImprove() {
     const missing: string[] = [];
     sections.forEach((s) => (t.includes(s.toLowerCase().split(" ")[0]) ? ok.push(s) : missing.push(s)));
 
-    const result = `# ${title || "Forbedret proces"}\n\n## Formål\n${draft.split("\n")[0] || "[Beskriv formål]"}\n\n## Scope\n[Afgræns hvad processen dækker]\n\n## Roller (RACI)\n- Owner: ${profile?.full_name ?? ""}\n- Ansvarlig: [navn]\n- Konsulteret: [team]\n\n## Trin-for-trin\n${draft.split("\n").filter(Boolean).map((l, i) => `${i + 1}. ${l.replace(/^[-*]\s*/, "")}`).join("\n")}\n\n## SLA & KPI\n- Svartid: [X dage]\n- Måles på: [KPI]\n\n## Eskalering\n[Hvem og hvornår]\n\n---\n_Udkast baseret på vidensbank (${knowledgeCount} aktive regler)._`;
+    // Preserve original document structure (headings, tables, images)
+    // Only append missing standard sections as placeholders.
+    const hasOwnTitle = /^#\s+/m.test(draft);
+    const header = hasOwnTitle ? "" : `# ${title || "Forbedret proces"}\n\n`;
+    const placeholders: string[] = [];
+    if (missing.includes("Formål")) placeholders.push(`## Formål\n[Beskriv formålet med processen]`);
+    if (missing.includes("Scope")) placeholders.push(`## Scope\n[Afgræns hvad processen dækker]`);
+    if (missing.includes("Roller (RACI)")) placeholders.push(`## Roller (RACI)\n- Owner: ${profile?.full_name ?? ""}\n- Ansvarlig: [navn]\n- Konsulteret: [team]`);
+    if (missing.includes("SLA & KPI")) placeholders.push(`## SLA & KPI\n- Svartid: [X dage]\n- Måles på: [KPI]`);
+    if (missing.includes("Eskalering")) placeholders.push(`## Eskalering\n[Hvem og hvornår]`);
+    const suffix = placeholders.length
+      ? `\n\n---\n\n## Forslag til manglende afsnit\n\n${placeholders.join("\n\n")}`
+      : "";
+    const result = `${header}${draft.trim()}${suffix}\n\n---\n_Udkast bevarer original struktur (tabeller og billeder). Baseret på vidensbank (${knowledgeCount} aktive regler)._`;
 
     setImproved(result);
     setFindings({ ok, missing });
@@ -100,7 +121,9 @@ export default function UploadImprove() {
 
   const save = async () => {
     if (!title.trim() || !improved) { toast.error("Mangler titel eller indhold"); return; }
-    if (!departmentId) { toast.error("Vælg en afdeling"); return; }
+    // For non-admins, force their own department
+    const effectiveDeptId = isAdmin ? departmentId : (profile?.department_id ?? departmentId);
+    if (!effectiveDeptId) { toast.error("Vælg en afdeling"); return; }
     if (!profile) return;
     if (!canEdit) { toast.error("Du har ikke rettigheder til at oprette processer"); return; }
 
@@ -111,18 +134,18 @@ export default function UploadImprove() {
       if (upErr) { toast.error("Filupload fejlede: " + upErr.message); return; }
       filePath = path;
       await supabase.from("uploads").insert({
-        file_path: path, original_text: draft, title, department_id: departmentId, created_by: profile.id,
+        file_path: path, original_text: draft, title, department_id: effectiveDeptId, created_by: profile.id,
       });
     } else if (draft) {
       await supabase.from("uploads").insert({
-        file_path: null, original_text: draft, title, department_id: departmentId, created_by: profile.id,
+        file_path: null, original_text: draft, title, department_id: effectiveDeptId, created_by: profile.id,
       });
     }
 
     const { data: proc, error: procErr } = await supabase.from("processes").insert({
-      title, content: improved, department_id: departmentId, status: "Draft",
+      title, content: improved, department_id: effectiveDeptId, status: "Draft",
       owner_id: profile.id, owner_name: profile.full_name,
-      tags: [(departments.find(d => d.id === departmentId)?.name ?? "").toLowerCase(), "ny"],
+      tags: [(departments.find(d => d.id === effectiveDeptId)?.name ?? "").toLowerCase(), "ny"],
       quality_score: scoreQuality(improved),
     }).select("id").single();
 
@@ -159,12 +182,17 @@ export default function UploadImprove() {
               </div>
               <div>
                 <Label>Afdeling</Label>
-                <Select value={departmentId} onValueChange={setDepartmentId}>
-                  <SelectTrigger><SelectValue placeholder="Vælg" /></SelectTrigger>
+                <Select value={departmentId} onValueChange={setDepartmentId} disabled={!isAdmin}>
+                  <SelectTrigger>
+                    <SelectValue placeholder={isAdmin ? "Vælg hvor processen skal gemmes" : "Din afdeling"} />
+                  </SelectTrigger>
                   <SelectContent>
                     {departments.map((d) => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
+                {!isAdmin && (
+                  <p className="text-[11px] text-muted-foreground mt-1">Gemmes automatisk i din afdeling.</p>
+                )}
               </div>
             </div>
             <div>
