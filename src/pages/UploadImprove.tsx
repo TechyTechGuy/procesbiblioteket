@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,6 +11,7 @@ import { QualityMeter } from "@/components/QualityMeter";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import mammoth from "mammoth";
 
 export default function UploadImprove() {
   const { departments, profile, canEdit } = useAuth();
@@ -22,6 +23,8 @@ export default function UploadImprove() {
   const [findings, setFindings] = useState<{ ok: string[]; missing: string[] }>({ ok: [], missing: [] });
   const [knowledgeCount, setKnowledgeCount] = useState(0);
   const [file, setFile] = useState<File | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [extractedImages, setExtractedImages] = useState<{ name: string; dataUrl: string }[]>([]);
 
   useEffect(() => {
     supabase.from("knowledge_items").select("id", { count: "exact", head: true }).eq("active", true)
@@ -34,10 +37,51 @@ export default function UploadImprove() {
 
   const handleFile = async (f: File) => {
     setFile(f);
-    const text = await f.text();
-    setDraft(text);
+    const name = f.name.toLowerCase();
     if (!title) setTitle(f.name.replace(/\.[^.]+$/, ""));
+    try {
+      if (name.endsWith(".docx")) {
+        const arrayBuffer = await f.arrayBuffer();
+        const images: { name: string; dataUrl: string }[] = [];
+        const result = await mammoth.convertToHtml(
+          { arrayBuffer },
+          {
+            convertImage: mammoth.images.imgElement(async (image) => {
+              const buffer = await image.read("base64");
+              const dataUrl = `data:${image.contentType};base64,${buffer}`;
+              images.push({ name: `image-${images.length + 1}`, dataUrl });
+              return { src: dataUrl };
+            }),
+          }
+        );
+        const textResult = await mammoth.extractRawText({ arrayBuffer });
+        setDraft(textResult.value);
+        setExtractedImages(images);
+        if (images.length > 0) {
+          toast.success(`Word-dokument indlæst (${images.length} billede(r) fundet)`);
+        } else {
+          toast.success("Word-dokument indlæst");
+        }
+        // store html for potential later use (not currently shown)
+        void result;
+      } else if (name.endsWith(".doc")) {
+        toast.error("Gamle .doc-filer understøttes ikke. Gem som .docx.");
+      } else {
+        const text = await f.text();
+        setDraft(text);
+        setExtractedImages([]);
+      }
+    } catch (err: any) {
+      toast.error("Kunne ikke læse fil: " + (err?.message ?? "ukendt fejl"));
+    }
   };
+
+  const onDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const f = e.dataTransfer.files?.[0];
+    if (f) handleFile(f);
+  }, []);
 
   const improve = () => {
     if (!draft.trim()) { toast.error("Tilføj først et udkast"); return; }
@@ -125,8 +169,36 @@ export default function UploadImprove() {
             </div>
             <div>
               <Label htmlFor="file" className="text-xs">Upload fil (valgfri)</Label>
-              <Input id="file" type="file" accept=".txt,.md" onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])} />
+              <div
+                onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+                onDragLeave={() => setIsDragging(false)}
+                onDrop={onDrop}
+                className={`rounded-lg border-2 border-dashed p-4 text-center text-xs transition-smooth ${isDragging ? "border-primary bg-primary/5" : "border-muted"}`}
+              >
+                <Input
+                  id="file"
+                  type="file"
+                  accept=".txt,.md,.docx"
+                  onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
+                />
+                <p className="mt-2 text-muted-foreground">
+                  Træk og slip .docx, .txt eller .md filer her
+                </p>
+                {file && (
+                  <p className="mt-1 text-success">Valgt: {file.name}</p>
+                )}
+              </div>
             </div>
+            {extractedImages.length > 0 && (
+              <div className="rounded-lg border bg-muted/30 p-2">
+                <p className="text-xs font-medium mb-2">Billeder fra dokumentet ({extractedImages.length})</p>
+                <div className="grid grid-cols-4 gap-2">
+                  {extractedImages.map((img, i) => (
+                    <img key={i} src={img.dataUrl} alt={img.name} className="rounded border w-full h-20 object-cover" />
+                  ))}
+                </div>
+              </div>
+            )}
             <Textarea value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="Indsæt dit procesudkast her..." rows={12} className="font-mono text-xs" />
             <Button onClick={improve} className="w-full bg-gradient-primary hover:opacity-90 transition-smooth">
               <Wand2 className="mr-2 h-4 w-4" />Forbedr forslag
