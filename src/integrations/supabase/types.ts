@@ -37,28 +37,52 @@ export type Database = {
           active: boolean
           content: string
           created_at: string
+          created_by: string | null
           department_id: string | null
+          extracted_text: string | null
+          file_mime: string | null
+          file_name: string | null
+          file_path: string | null
+          file_size_bytes: number | null
           id: string
+          scope: string
           title: string
           type: string
+          use_in_ai: boolean
         }
         Insert: {
           active?: boolean
           content: string
           created_at?: string
+          created_by?: string | null
           department_id?: string | null
+          extracted_text?: string | null
+          file_mime?: string | null
+          file_name?: string | null
+          file_path?: string | null
+          file_size_bytes?: number | null
           id?: string
+          scope?: string
           title: string
           type: string
+          use_in_ai?: boolean
         }
         Update: {
           active?: boolean
           content?: string
           created_at?: string
+          created_by?: string | null
           department_id?: string | null
+          extracted_text?: string | null
+          file_mime?: string | null
+          file_name?: string | null
+          file_path?: string | null
+          file_size_bytes?: number | null
           id?: string
+          scope?: string
           title?: string
           type?: string
+          use_in_ai?: boolean
         }
         Relationships: [
           {
