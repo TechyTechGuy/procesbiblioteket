@@ -6,7 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth, scoreQuality } from "@/lib/auth";
-import { Wand2, Save, FileUp, Sparkles, CheckCircle2, AlertCircle } from "lucide-react";
+import { Wand2, Save, FileUp, Sparkles, CheckCircle2, AlertCircle, Loader2, Bot } from "lucide-react";
 import { QualityMeter } from "@/components/QualityMeter";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
@@ -14,6 +14,8 @@ import { supabase } from "@/integrations/supabase/client";
 import mammoth from "mammoth";
 import TurndownService from "turndown";
 import * as turndownGfm from "turndown-plugin-gfm";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 export default function UploadImprove() {
   const { departments, profile, canEdit, isAdmin } = useAuth();
@@ -27,6 +29,8 @@ export default function UploadImprove() {
   const [file, setFile] = useState<File | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [extractedImages, setExtractedImages] = useState<{ name: string; dataUrl: string }[]>([]);
+  const [claudeOutput, setClaudeOutput] = useState<string>("");
+  const [claudeLoading, setClaudeLoading] = useState(false);
 
   // Shared HTML -> Markdown converter (preserves tables, headings, images)
   const htmlToMarkdown = (html: string) => {
@@ -40,6 +44,51 @@ export default function UploadImprove() {
   };
 
   const looksLikeHtml = (s: string) => /<\/?(table|tr|td|th|tbody|thead|p|div|span|h[1-6]|ul|ol|li|img|br)\b/i.test(s);
+
+  const fileToBase64 = (f: File) =>
+    new Promise<string>((resolve, reject) => {
+      const r = new FileReader();
+      r.onload = () => {
+        const s = String(r.result ?? "");
+        const i = s.indexOf(",");
+        resolve(i >= 0 ? s.slice(i + 1) : s);
+      };
+      r.onerror = () => reject(r.error);
+      r.readAsDataURL(f);
+    });
+
+  const parseWithClaude = async (f: File) => {
+    const name = f.name.toLowerCase();
+    const isImage = /\.(png|jpe?g)$/i.test(name) || f.type.startsWith("image/");
+    const isDocx = name.endsWith(".docx");
+    if (!isImage && !isDocx) return;
+
+    setClaudeLoading(true);
+    setClaudeOutput("");
+    try {
+      let payload: any;
+      if (isImage) {
+        const base64 = await fileToBase64(f);
+        const mediaType = f.type || (name.endsWith(".png") ? "image/png" : "image/jpeg");
+        payload = { kind: "image", image: { mediaType, base64 } };
+      } else {
+        const arrayBuffer = await f.arrayBuffer();
+        const result = await mammoth.convertToHtml({ arrayBuffer });
+        payload = { kind: "docx", text: result.value };
+      }
+      const { data, error } = await supabase.functions.invoke("claude-parse", { body: payload });
+      if (error) throw error;
+      if ((data as any)?.error) throw new Error((data as any).error);
+      const md = (data as any)?.markdown ?? "";
+      setClaudeOutput(md);
+      if (!draft.trim()) setDraft(md);
+      toast.success("Claude har parset dokumentet");
+    } catch (e: any) {
+      toast.error("Claude-parsing fejlede: " + (e?.message ?? "ukendt fejl"));
+    } finally {
+      setClaudeLoading(false);
+    }
+  };
 
   useEffect(() => {
     supabase.from("knowledge_items").select("id", { count: "exact", head: true }).eq("active", true)
@@ -55,6 +104,13 @@ export default function UploadImprove() {
     const name = f.name.toLowerCase();
     if (!title) setTitle(f.name.replace(/\.[^.]+$/, ""));
     try {
+      const isImage = /\.(png|jpe?g)$/i.test(name) || f.type.startsWith("image/");
+      if (isImage) {
+        // Images: don't set local draft, send straight to Claude
+        setExtractedImages([]);
+        await parseWithClaude(f);
+        return;
+      }
       if (name.endsWith(".docx")) {
         const arrayBuffer = await f.arrayBuffer();
         const images: { name: string; dataUrl: string }[] = [];
@@ -77,6 +133,8 @@ export default function UploadImprove() {
         } else {
           toast.success("Word-dokument indlæst");
         }
+        // Also send to Claude for richer structured parsing
+        parseWithClaude(f);
       } else if (name.endsWith(".doc")) {
         toast.error("Gamle .doc-filer understøttes ikke. Gem som .docx.");
       } else if (name.endsWith(".html") || name.endsWith(".htm")) {
@@ -241,17 +299,55 @@ export default function UploadImprove() {
                 <Input
                   id="file"
                   type="file"
-                  accept=".txt,.md,.docx,.html,.htm"
+                  accept=".txt,.md,.docx,.html,.htm,.png,.jpg,.jpeg,image/png,image/jpeg"
                   onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
                 />
                 <p className="mt-2 text-muted-foreground">
-                  Træk og slip .docx, .html, .txt eller .md filer her (eller indsæt HTML i tekstfeltet)
+                  Træk og slip .docx, .png, .jpg, .html, .txt eller .md filer her. Word og billeder parses automatisk af Claude.
                 </p>
                 {file && (
                   <p className="mt-1 text-success">Valgt: {file.name}</p>
                 )}
               </div>
             </div>
+            {(claudeLoading || claudeOutput) && (
+              <Card className="border-accent/40">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <Bot className="h-4 w-4 text-accent" />
+                    Claude parsing (claude-sonnet-4)
+                  </CardTitle>
+                  <CardDescription className="text-xs">Struktureret udtræk med tabeller og fremhævninger</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {claudeLoading ? (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground py-6 justify-center">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Claude læser dokumentet…
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <div className="prose prose-sm max-w-none dark:prose-invert rounded-md border bg-background p-3 max-h-[400px] overflow-auto
+                        [&_table]:w-full [&_table]:border-collapse [&_table]:my-2
+                        [&_th]:border [&_th]:border-border [&_th]:bg-muted [&_th]:px-2 [&_th]:py-1 [&_th]:text-left
+                        [&_td]:border [&_td]:border-border [&_td]:px-2 [&_td]:py-1
+                        [&_h1]:text-base [&_h2]:text-sm [&_h3]:text-sm [&_h1]:font-bold [&_h2]:font-semibold [&_h3]:font-semibold
+                        [&_pre]:bg-muted [&_pre]:p-2 [&_pre]:rounded">
+                        <ReactMarkdown remarkPlugins={[remarkGfm]}>{claudeOutput}</ReactMarkdown>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button size="sm" variant="outline" onClick={() => setDraft(claudeOutput)}>
+                          Brug som udkast
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={() => navigator.clipboard.writeText(claudeOutput).then(() => toast.success("Kopieret"))}>
+                          Kopier markdown
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
             {extractedImages.length > 0 && (
               <div className="rounded-lg border bg-muted/30 p-2">
                 <p className="text-xs font-medium mb-2">Billeder fra dokumentet ({extractedImages.length})</p>
