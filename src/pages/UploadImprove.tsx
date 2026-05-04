@@ -77,7 +77,17 @@ export default function UploadImprove() {
         payload = { kind: "docx", text: result.value };
       }
       const { data, error } = await supabase.functions.invoke("claude-parse", { body: payload });
-      if (error) throw error;
+      if (error) {
+        let msg = error.message ?? "ukendt fejl";
+        try {
+          const ctx: any = (error as any).context;
+          if (ctx && typeof ctx.json === "function") {
+            const j = await ctx.json();
+            if (j?.error) msg = typeof j.error === "string" ? j.error : JSON.stringify(j.error);
+          }
+        } catch { /* ignore */ }
+        throw new Error(msg);
+      }
       if ((data as any)?.error) throw new Error((data as any).error);
       const md = (data as any)?.markdown ?? "";
       setClaudeOutput(md);
