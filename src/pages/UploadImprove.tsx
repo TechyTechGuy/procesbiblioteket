@@ -241,11 +241,11 @@ export default function UploadImprove() {
                 <Input
                   id="file"
                   type="file"
-                  accept=".txt,.md,.docx"
+                  accept=".txt,.md,.docx,.html,.htm"
                   onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
                 />
                 <p className="mt-2 text-muted-foreground">
-                  Træk og slip .docx, .txt eller .md filer her
+                  Træk og slip .docx, .html, .txt eller .md filer her (eller indsæt HTML i tekstfeltet)
                 </p>
                 {file && (
                   <p className="mt-1 text-success">Valgt: {file.name}</p>
