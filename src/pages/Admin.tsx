@@ -231,7 +231,8 @@ export default function Admin() {
                           size="icon"
                           className="h-8 w-8 text-muted-foreground hover:text-destructive"
                           onClick={() => setPendingDelete(u)}
-                          title={isSoftDeleted(u) ? "Slet permanent" : "Deaktiver"}
+                          disabled={u.id === user?.id}
+                          title={u.id === user?.id ? "Du kan ikke slette dig selv" : (isSoftDeleted(u) ? "Slet permanent" : "Deaktiver")}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
