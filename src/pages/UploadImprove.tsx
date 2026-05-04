@@ -299,17 +299,55 @@ export default function UploadImprove() {
                 <Input
                   id="file"
                   type="file"
-                  accept=".txt,.md,.docx,.html,.htm"
+                  accept=".txt,.md,.docx,.html,.htm,.png,.jpg,.jpeg,image/png,image/jpeg"
                   onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
                 />
                 <p className="mt-2 text-muted-foreground">
-                  Træk og slip .docx, .html, .txt eller .md filer her (eller indsæt HTML i tekstfeltet)
+                  Træk og slip .docx, .png, .jpg, .html, .txt eller .md filer her. Word og billeder parses automatisk af Claude.
                 </p>
                 {file && (
                   <p className="mt-1 text-success">Valgt: {file.name}</p>
                 )}
               </div>
             </div>
+            {(claudeLoading || claudeOutput) && (
+              <Card className="border-accent/40">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <Bot className="h-4 w-4 text-accent" />
+                    Claude parsing (claude-sonnet-4)
+                  </CardTitle>
+                  <CardDescription className="text-xs">Struktureret udtræk med tabeller og fremhævninger</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {claudeLoading ? (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground py-6 justify-center">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Claude læser dokumentet…
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <div className="prose prose-sm max-w-none dark:prose-invert rounded-md border bg-background p-3 max-h-[400px] overflow-auto
+                        [&_table]:w-full [&_table]:border-collapse [&_table]:my-2
+                        [&_th]:border [&_th]:border-border [&_th]:bg-muted [&_th]:px-2 [&_th]:py-1 [&_th]:text-left
+                        [&_td]:border [&_td]:border-border [&_td]:px-2 [&_td]:py-1
+                        [&_h1]:text-base [&_h2]:text-sm [&_h3]:text-sm [&_h1]:font-bold [&_h2]:font-semibold [&_h3]:font-semibold
+                        [&_pre]:bg-muted [&_pre]:p-2 [&_pre]:rounded">
+                        <ReactMarkdown remarkPlugins={[remarkGfm]}>{claudeOutput}</ReactMarkdown>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button size="sm" variant="outline" onClick={() => setDraft(claudeOutput)}>
+                          Brug som udkast
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={() => navigator.clipboard.writeText(claudeOutput).then(() => toast.success("Kopieret"))}>
+                          Kopier markdown
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
             {extractedImages.length > 0 && (
               <div className="rounded-lg border bg-muted/30 p-2">
                 <p className="text-xs font-medium mb-2">Billeder fra dokumentet ({extractedImages.length})</p>
