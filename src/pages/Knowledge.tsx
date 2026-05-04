@@ -8,7 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from "@/lib/auth";
-import { Plus, Trash2, BookOpen } from "lucide-react";
+import { Plus, Trash2, BookOpen, Pencil } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -21,7 +21,25 @@ export default function Knowledge() {
   const { isAdmin, departments } = useAuth();
   const [items, setItems] = useState<KItem[]>([]);
   const [open, setOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState({ title: "", type: "Hard rule", department_id: "all", content: "" });
+
+  const openCreate = () => {
+    setEditingId(null);
+    setDraft({ title: "", type: "Hard rule", department_id: "all", content: "" });
+    setOpen(true);
+  };
+
+  const openEdit = (k: KItem) => {
+    setEditingId(k.id);
+    setDraft({
+      title: k.title,
+      type: k.type,
+      department_id: k.department_id ?? "all",
+      content: k.content,
+    });
+    setOpen(true);
+  };
 
   const load = async () => {
     const { data } = await supabase.from("knowledge_items").select("*").order("created_at", { ascending: false });
@@ -29,17 +47,26 @@ export default function Knowledge() {
   };
   useEffect(() => { load(); }, []);
 
-  const add = async () => {
+  const save = async () => {
     if (!draft.title || !draft.content) { toast.error("Udfyld titel og indhold"); return; }
-    const { error } = await supabase.from("knowledge_items").insert({
-      title: draft.title, type: draft.type, content: draft.content,
+    const payload = {
+      title: draft.title,
+      type: draft.type,
+      content: draft.content,
       department_id: draft.department_id === "all" ? null : draft.department_id,
-      active: true,
-    });
-    if (error) { toast.error(error.message); return; }
+    };
+    if (editingId) {
+      const { error } = await supabase.from("knowledge_items").update(payload).eq("id", editingId);
+      if (error) { toast.error(error.message); return; }
+      toast.success("Ændringer gemt");
+    } else {
+      const { error } = await supabase.from("knowledge_items").insert({ ...payload, active: true });
+      if (error) { toast.error(error.message); return; }
+      toast.success("Tilføjet");
+    }
+    setEditingId(null);
     setDraft({ title: "", type: "Hard rule", department_id: "all", content: "" });
     setOpen(false);
-    toast.success("Tilføjet");
     load();
   };
 
@@ -64,9 +91,9 @@ export default function Knowledge() {
         </div>
         {isAdmin && (
           <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild><Button><Plus className="mr-2 h-4 w-4" />Tilføj</Button></DialogTrigger>
+            <DialogTrigger asChild><Button onClick={openCreate}><Plus className="mr-2 h-4 w-4" />Tilføj</Button></DialogTrigger>
             <DialogContent>
-              <DialogHeader><DialogTitle>Tilføj vidensitem</DialogTitle></DialogHeader>
+              <DialogHeader><DialogTitle>{editingId ? "Rediger vidensitem" : "Tilføj vidensitem"}</DialogTitle></DialogHeader>
               <div className="space-y-3">
                 <div><Label>Titel</Label><Input value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} /></div>
                 <div className="grid grid-cols-2 gap-3">
@@ -88,7 +115,9 @@ export default function Knowledge() {
                 </div>
                 <div><Label>Indhold</Label><Textarea rows={5} value={draft.content} onChange={(e) => setDraft({ ...draft, content: e.target.value })} /></div>
               </div>
-              <DialogFooter><Button onClick={add}>Tilføj</Button></DialogFooter>
+              <DialogFooter>
+                <Button onClick={save}>{editingId ? "Gem ændringer" : "Tilføj"}</Button>
+              </DialogFooter>
             </DialogContent>
           </Dialog>
         )}
@@ -103,6 +132,7 @@ export default function Knowledge() {
                 {isAdmin && (
                   <div className="flex items-center gap-2">
                     <Switch checked={k.active} onCheckedChange={(v) => toggleActive(k, v)} />
+                    <Button size="icon" variant="ghost" onClick={() => openEdit(k)}><Pencil className="h-4 w-4" /></Button>
                     <Button size="icon" variant="ghost" onClick={() => remove(k)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                   </div>
                 )}
