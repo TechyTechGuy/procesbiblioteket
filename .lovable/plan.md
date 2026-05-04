@@ -1,34 +1,70 @@
-## Problem
+## Mål
 
-`supabase.functions.invoke("claude-parse", ...)` returnerer "non-2xx status code". Direkte test mod edge function viser at Anthropic API svarer med **404 not_found_error: `model: claude-sonnet-4-20250514`**. Modellen findes ikke (eller er ikke tilgængelig på den aktive Anthropic-konto).
+1. Erstat det forvirrende dobbelt-layout (rendered + rå tekst) med ét rendered output-panel.
+2. Lad Claude parse OG forbedre dokumentet i ét kald, hvor vidensbankens regler injiceres direkte i system prompten.
 
-## Løsning
+---
 
-Skift modellen i `supabase/functions/claude-parse/index.ts` til et gyldigt, alment tilgængeligt Claude Sonnet-modelnavn, og forbedre fejl-håndteringen så fejlbeskeden fra Claude vises tydeligt i UI'et.
+## Issue 1 — Ét rendered output-panel
 
-### Ændringer
+Rediger `src/pages/UploadImprove.tsx`:
 
-1. **`supabase/functions/claude-parse/index.ts`**
-   - Skift model fra `claude-sonnet-4-20250514` til `claude-sonnet-4-5` (alias for nyeste Claude Sonnet 4.5 — den korrekte efterfølger til den ikke-eksisterende identifier).
-   - Behold samme system-prompt, max_tokens og struktur.
-   - Sikre at fejl-respons indeholder Claude's `error.message` (allerede tilfældet).
+- Fjern den nederste `<Textarea>` der viser rå markdown for `improved`.
+- Behold det øverste rendered preview-panel (ReactMarkdown + remark-gfm). Brug samme styling som Claude-preview-blokken (tabel/border/heading klasser) så rendered "improved" matcher præcist.
+- `improved` markdown gemmes i state men vises ikke længere som råtekst (det er det "skjulte" felt der submittes ved Gem).
+- Knapper under det rendered output:
+  - **Kopier markdown** — kopierer rå `improved` markdown (uændret).
+  - **Kopier som tekst** — render markdown til pænt formateret plain text (tabeller bevaret som tekst-tabeller). Brug en let helper:
+    - Konverter `improved` (markdown) → HTML via `marked` eller en mini-renderer; eller endnu enklere: render til en skjult DOM-node via `ReactMarkdown` og brug `node.innerText` (bevarer tabel-radbrydning naturligt).
+    - Foretrukket: skjult `<div ref>` der allerede indeholder det rendered preview → `ref.current.innerText` på klik. Ingen ny dependency.
+  - **Gem i bibliotek** — uændret, bruger `improved` state direkte (det "skjulte rå markdown felt").
+- Tilsvarende oprydning i Claude-preview-blokken: behold "Brug som udkast" (sætter `draft` = rå markdown bagved) og "Kopier markdown".
+- Ingen synlig rå-tekst editor for `improved`. Hvis brugeren vil rette: de redigerer `draft` (input) og kører Forbedr igen.
 
-2. **`src/pages/UploadImprove.tsx`** (lille forbedring)
-   - Når `error` fra `functions.invoke` rammes, forsøg at læse `error.context` / response-body så toast viser den rigtige Anthropic-besked (i dag vises kun "Edge Function returned a non-2xx status code").
+---
 
-### Hvorfor `claude-sonnet-4-5`
+## Issue 2 — Vidensbank ind i Claude-kaldet
 
-`claude-sonnet-4-20250514` har aldrig været et offentligt Anthropic-modelnavn. De gyldige nuværende navne er bl.a.:
-- `claude-sonnet-4-5` (alias, peger på nyeste)
-- `claude-sonnet-4-5-20250929` (snapshot)
-- `claude-3-5-sonnet-latest`
+Ny flow når brugeren klikker **Forbedr forslag**:
 
-Vi vælger aliaset `claude-sonnet-4-5` for at få den nyeste Sonnet-version automatisk.
+1. Hent aktive knowledge_items hvor `use_in_ai = true` OG (`scope = 'global'` ELLER `department_id = bruger.department_id`).
+   - For hver item byg en tekstblok: `### {title} ({type})\n{content}\n{extracted_text ?? ""}`.
+2. Send ALT i ét kald til `claude-parse` edge function med en ny `kind: "improve"` payload:
+   ```json
+   { "kind": "improve",
+     "documentMarkdown": "<draft eller claudeOutput>",
+     "rules": "<sammenflettet regeltekst>",
+     "title": "<title>" }
+   ```
+3. Edge function `supabase/functions/claude-parse/index.ts` udvides med håndtering af `kind: "improve"`:
+   - System prompt:
+     ```
+     You are a document parser and process improver.
 
-### Verificering
+     KNOWLEDGE BASE RULES:
+     {rules}
 
-Efter ændringen kalder jeg edge function direkte med en lille test-payload og bekræfter 200 + markdown-svar, før vi siger fejlen er løst.
+     Task: Parse the uploaded document AND apply the above rules to suggest improvements.
+     Present the result in two clearly labeled sections:
+     1. **Parsed document** — structured extraction with tables preserved as markdown tables
+     2. **Suggested improvements** — based on the knowledge base rules
 
-### Ingen DB-ændringer
+     Respond in Danish. Return only markdown, no preamble.
+     ```
+   - User content: dokumentets markdown (`documentMarkdown`).
+   - Samme model (`claude-sonnet-4-5`), max_tokens hævet til 12000.
+4. Frontend: `improve()` bliver async, kalder edge function, sætter `improved = data.markdown`, viser rendered preview. Den eksisterende lokale "findings" section (Opfyldte/Mangler) fjernes — Claude leverer nu forbedringerne i sektion 2.
 
-Ingen migrations, ingen schema-ændringer, ingen nye secrets — `ANTHROPIC_API_KEY` er allerede sat.
+### Edge case håndtering
+- Hvis ingen aktive AI-regler: send `rules = "(ingen regler defineret)"` og lad Claude bare parse + give generelle forslag.
+- Hvis `draft` er tomt men `claudeOutput` findes: brug `claudeOutput` som documentMarkdown.
+- Loading state på "Forbedr forslag" knappen (spinner + disabled).
+- Fejl vises via toast som i parseWithClaude.
+
+---
+
+## Berørte filer
+
+- `src/pages/UploadImprove.tsx` — UI omskrivning + ny `improve()` der kalder edge function med regler.
+- `supabase/functions/claude-parse/index.ts` — tilføj `kind: "improve"` branch med rules-injiceret system prompt.
+- Ingen DB-ændringer. Ingen nye dependencies.

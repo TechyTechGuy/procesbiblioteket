@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,7 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth, scoreQuality } from "@/lib/auth";
-import { Wand2, Save, FileUp, Sparkles, CheckCircle2, AlertCircle, Loader2, Bot } from "lucide-react";
+import { Wand2, Save, FileUp, Sparkles, Loader2, Bot, Copy, FileText } from "lucide-react";
 import { QualityMeter } from "@/components/QualityMeter";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
@@ -24,13 +24,14 @@ export default function UploadImprove() {
   const [departmentId, setDepartmentId] = useState<string>("");
   const [draft, setDraft] = useState("");
   const [improved, setImproved] = useState("");
-  const [findings, setFindings] = useState<{ ok: string[]; missing: string[] }>({ ok: [], missing: [] });
   const [knowledgeCount, setKnowledgeCount] = useState(0);
   const [file, setFile] = useState<File | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [extractedImages, setExtractedImages] = useState<{ name: string; dataUrl: string }[]>([]);
   const [claudeOutput, setClaudeOutput] = useState<string>("");
   const [claudeLoading, setClaudeLoading] = useState(false);
+  const [improveLoading, setImproveLoading] = useState(false);
+  const improvedRef = useRef<HTMLDivElement | null>(null);
 
   // Shared HTML -> Markdown converter (preserves tables, headings, images)
   const htmlToMarkdown = (html: string) => {
@@ -194,32 +195,60 @@ export default function UploadImprove() {
     }
   };
 
-  const improve = () => {
-    if (!draft.trim()) { toast.error("Tilføj først et udkast"); return; }
-    const sections = ["Formål", "Scope", "Roller (RACI)", "Trigger", "Trin-for-trin", "Inputs/Outputs", "Kontroller & risici", "SLA & KPI", "Eskalering"];
-    const t = draft.toLowerCase();
-    const ok: string[] = [];
-    const missing: string[] = [];
-    sections.forEach((s) => (t.includes(s.toLowerCase().split(" ")[0]) ? ok.push(s) : missing.push(s)));
+  const improveWithClaude = async () => {
+    const sourceDoc = (draft && draft.trim()) || claudeOutput;
+    if (!sourceDoc.trim()) { toast.error("Tilføj først et udkast eller upload et dokument"); return; }
 
-    // Preserve original document structure (headings, tables, images)
-    // Only append missing standard sections as placeholders.
-    const hasOwnTitle = /^#\s+/m.test(draft);
-    const header = hasOwnTitle ? "" : `# ${title || "Forbedret proces"}\n\n`;
-    const placeholders: string[] = [];
-    if (missing.includes("Formål")) placeholders.push(`## Formål\n[Beskriv formålet med processen]`);
-    if (missing.includes("Scope")) placeholders.push(`## Scope\n[Afgræns hvad processen dækker]`);
-    if (missing.includes("Roller (RACI)")) placeholders.push(`## Roller (RACI)\n- Owner: ${profile?.full_name ?? ""}\n- Ansvarlig: [navn]\n- Konsulteret: [team]`);
-    if (missing.includes("SLA & KPI")) placeholders.push(`## SLA & KPI\n- Svartid: [X dage]\n- Måles på: [KPI]`);
-    if (missing.includes("Eskalering")) placeholders.push(`## Eskalering\n[Hvem og hvornår]`);
-    const suffix = placeholders.length
-      ? `\n\n---\n\n## Forslag til manglende afsnit\n\n${placeholders.join("\n\n")}`
-      : "";
-    const result = `${header}${draft.trim()}${suffix}\n\n---\n_Udkast bevarer original struktur (tabeller og billeder). Baseret på vidensbank (${knowledgeCount} aktive regler)._`;
+    setImproveLoading(true);
+    try {
+      // Hent aktive AI-regler tilgængelige for brugeren (RLS filtrerer scope/department)
+      const { data: rules, error: rulesErr } = await supabase
+        .from("knowledge_items")
+        .select("title, type, content, extracted_text")
+        .eq("active", true)
+        .eq("use_in_ai", true);
+      if (rulesErr) throw rulesErr;
 
-    setImproved(result);
-    setFindings({ ok, missing });
-    toast.success("Forslag genereret");
+      const rulesText = (rules ?? [])
+        .map((r: any) => {
+          const extra = r.extracted_text ? `\n${r.extracted_text}` : "";
+          return `### ${r.title} (${r.type})\n${r.content ?? ""}${extra}`;
+        })
+        .join("\n\n---\n\n");
+
+      const { data, error } = await supabase.functions.invoke("claude-parse", {
+        body: { kind: "improve", documentMarkdown: sourceDoc, rules: rulesText, title },
+      });
+      if (error) {
+        let msg = error.message ?? "ukendt fejl";
+        try {
+          const ctx: any = (error as any).context;
+          if (ctx && typeof ctx.json === "function") {
+            const j = await ctx.json();
+            if (j?.error) msg = typeof j.error === "string" ? j.error : JSON.stringify(j.error);
+          }
+        } catch { /* ignore */ }
+        throw new Error(msg);
+      }
+      if ((data as any)?.error) throw new Error((data as any).error);
+      const md = (data as any)?.markdown ?? "";
+      setImproved(md);
+      toast.success("Forslag genereret");
+    } catch (e: any) {
+      toast.error("Forbedring fejlede: " + (e?.message ?? "ukendt fejl"));
+    } finally {
+      setImproveLoading(false);
+    }
+  };
+
+  const copyMarkdown = () => {
+    navigator.clipboard.writeText(improved).then(() => toast.success("Markdown kopieret"));
+  };
+
+  const copyAsText = () => {
+    const el = improvedRef.current;
+    const text = el ? (el.innerText || el.textContent || improved) : improved;
+    navigator.clipboard.writeText(text).then(() => toast.success("Tekst kopieret"));
   };
 
   const save = async () => {
@@ -369,8 +398,9 @@ export default function UploadImprove() {
               </div>
             )}
             <Textarea value={draft} onChange={(e) => setDraft(e.target.value)} onPaste={onPasteDraft} placeholder="Indsæt dit procesudkast her (HTML fra Word/web konverteres automatisk)..." rows={12} className="font-mono text-xs" />
-            <Button onClick={improve} className="w-full bg-gradient-primary hover:opacity-90 transition-smooth">
-              <Wand2 className="mr-2 h-4 w-4" />Forbedr forslag
+            <Button onClick={improveWithClaude} disabled={improveLoading} className="w-full bg-gradient-primary hover:opacity-90 transition-smooth">
+              {improveLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wand2 className="mr-2 h-4 w-4" />}
+              Forbedr forslag
             </Button>
           </CardContent>
         </Card>
@@ -381,19 +411,32 @@ export default function UploadImprove() {
             <CardDescription>Baseret på {knowledgeCount} aktive regler i vidensbanken</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            {improved ? (
+            {improveLoading ? (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground py-12 justify-center">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Claude analyserer dokumentet og anvender regler…
+              </div>
+            ) : improved ? (
               <>
                 <QualityMeter score={scoreQuality(improved)} />
-                <Textarea value={improved} onChange={(e) => setImproved(e.target.value)} rows={12} className="font-mono text-xs" />
-                <div className="grid gap-2 sm:grid-cols-2 text-xs">
-                  <div className="rounded-lg border bg-success/5 p-2">
-                    <p className="font-medium text-success flex items-center gap-1"><CheckCircle2 className="h-3 w-3" />Opfyldte ({findings.ok.length})</p>
-                    <ul className="mt-1 space-y-0.5">{findings.ok.map((s) => <li key={s}>· {s}</li>)}</ul>
-                  </div>
-                  <div className="rounded-lg border bg-destructive/5 p-2">
-                    <p className="font-medium text-destructive flex items-center gap-1"><AlertCircle className="h-3 w-3" />Mangler ({findings.missing.length})</p>
-                    <ul className="mt-1 space-y-0.5">{findings.missing.map((s) => <li key={s}>· {s}</li>)}</ul>
-                  </div>
+                <div
+                  ref={improvedRef}
+                  className="prose prose-sm max-w-none dark:prose-invert rounded-md border bg-background p-3 max-h-[600px] overflow-auto
+                    [&_table]:w-full [&_table]:border-collapse [&_table]:my-2
+                    [&_th]:border [&_th]:border-border [&_th]:bg-muted [&_th]:px-2 [&_th]:py-1 [&_th]:text-left
+                    [&_td]:border [&_td]:border-border [&_td]:px-2 [&_td]:py-1
+                    [&_h1]:text-base [&_h2]:text-sm [&_h3]:text-sm [&_h1]:font-bold [&_h2]:font-semibold [&_h3]:font-semibold
+                    [&_pre]:bg-muted [&_pre]:p-2 [&_pre]:rounded"
+                >
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{improved}</ReactMarkdown>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Button size="sm" variant="outline" onClick={copyMarkdown}>
+                    <Copy className="mr-2 h-3 w-3" />Kopier markdown
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={copyAsText}>
+                    <FileText className="mr-2 h-3 w-3" />Kopier som tekst
+                  </Button>
                 </div>
                 <Button onClick={save} variant="default" className="w-full" disabled={!canEdit}>
                   <Save className="mr-2 h-4 w-4" />Gem i bibliotek
