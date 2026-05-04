@@ -1,49 +1,71 @@
+# Plan: Dokument-upload i Vidensbanken (PDF/Word)
+
 ## Mål
+Gør det muligt at vedhæfte PDF- eller Word-filer til et vidensbank-element, så fx en Code of Conduct kan ligge i Vidensbanken. Admin vælger pr. dokument om det er ren reference eller skal indgå i AI-forbedringen.
 
-Gøre prototypen til en rigtig app med login og permanent lagring, så uploads, processer, viden og admin-ændringer gemmes pr. bruger med korrekt adgangskontrol baseret på afdeling og rolle.
+## UX
 
-## Hvad du får
+På siden Vidensbanken:
+- Ny knap **"Upload dokument"** ved siden af "Tilføj regel" (kun synlig for admin og process owners).
+- Dialog med felter: Titel, Type (forvalgt **"Dokument"**, kan også være "Code of Conduct"), Afdeling (Alle / specifik), Filvælger (.pdf/.docx), kontakt **"Brug i AI-forbedring"** (toggle, kun admin kan ændre, default fra).
+- Eksisterende elementer i listen får:
+  - Et lille **filikon + filnavn** når der er en vedhæftet fil.
+  - Knap **"Åbn"** (åbner i ny fane via signed URL) og **"Download"**.
+  - Eksisterende **Aktiv-toggle** styrer om elementet vises i AI-forbedring (kun relevant når "Brug i AI" er sat).
+- Pr. dokument vises et badge: **"Reference"** eller **"Aktiv regel"**.
 
-- **Login med email + adgangskode** (email-bekræftelse påkrævet)
-- **theis.pedersen@3.dk** bliver automatisk admin første gang den registreres
-- **Profil pr. bruger**: navn, afdeling, rolle (Admin, Process Owner, Editor, Viewer)
-- **Permanent lagring** af processer, uploads, viden, afdelinger og brugere
-- **Rigtig adgangskontrol** håndhævet i databasen (ikke kun i UI)
-- **"View as"-funktionen** fjernes — adgang styres nu af den indloggede brugers rolle og afdeling
+## Adgang
+- Upload/slet/redigér: admin + process_owner.
+- Læs/download: alle authenticated brugere; afdelingsfiltrering som i dag (globalt eller egen afdeling).
 
-## Implementeringstrin
+## Datamodel
 
-1. **Aktivér Lovable Cloud** (database + auth + storage)
-2. **Database-skema**:
-   - `departments` (id, navn)
-   - `profiles` (user_id, navn, department_id) — auto-oprettes ved signup via trigger
-   - `user_roles` (user_id, role) — separat tabel pga. sikkerhed; rolle-enum: admin/process_owner/editor/viewer
-   - `processes` (id, titel, indhold, department_id, status, kvalitetsscore, owner, versions…)
-   - `process_versions` (id, process_id, indhold, ændret_af, tidspunkt)
-   - `knowledge_items` (id, type, titel, indhold, department_id)
-   - `uploads` (id, fil-sti, original-tekst, oprettet_af) + storage-bucket til filer
-3. **RLS-policies** (row-level sikkerhed) baseret på `has_role()` security-definer-funktion:
-   - Admin ser alt
-   - Andre roller ser kun data fra egen afdeling
-   - Editor/Process Owner kan redigere; Viewer kan kun læse
-4. **Auto-admin-trigger**: Ved signup tjekkes om email = `theis.pedersen@3.dk` → tildeles admin-rolle, ellers viewer
-5. **Auth-sider**: `/auth` (login + signup), `/reset-password`, ProtectedRoute-wrapper
-6. **Refaktor af eksisterende sider** så de læser/skriver til Cloud i stedet for mockData:
-   - Dashboard, Library, ProcessDetail, UploadImprove, Knowledge, Admin
-7. **Admin-side opgraderes**: rigtig brugeradministration (skift rolle, skift afdeling, slet bruger), opret/slet afdelinger
-8. **Header**: "View as"-vælger fjernes; viser nu indlogget bruger + logout-knap
-9. **Email-bekræftelse**: Standard Lovable-emails bruges (ingen custom domain nødvendig nu)
+Udvider eksisterende tabel `knowledge_items` (i stedet for ny tabel — så listen forbliver én samlet vidensbank):
 
-## Tekniske noter
+Nye kolonner:
+- `file_path text` — sti i storage-bucket (null for tekst-regler).
+- `file_name text` — original filnavn til visning.
+- `file_mime text` — `application/pdf` eller `application/vnd.openxmlformats-officedocument.wordprocessingml.document`.
+- `file_size_bytes integer`.
+- `use_in_ai boolean default false` — om dokumentets indhold skal indgå i AI-forbedring.
+- `extracted_text text` — udtrukket tekst (sat ved upload, bruges af AI).
+- `scope text default 'department'` med værdier `'global'` eller `'department'` — admin vælger.
+- `created_by uuid` — hvem uploadede.
 
-- Roller gemmes i separat `user_roles`-tabel (ikke på profile) for at undgå privilege escalation
-- `has_role(user_id, role)` som SECURITY DEFINER-funktion bruges i alle RLS-policies for at undgå rekursion
-- `onAuthStateChange` sættes op før `getSession()` i auth-context
-- Uploads: filer i Storage-bucket, metadata i `uploads`-tabel
-- Mock data bevares som seed-script så Library ikke er tom ved første login
+Indeks på `(active, use_in_ai)` for hurtigt opslag i AI-flow.
 
-## Hvad der ikke ændres
+## Storage
+- Genbruger eksisterende **`uploads`** bucket (privat) under prefix `knowledge/{knowledge_item_id}/{filnavn}`.
+- Adgang via **signed URLs** (60 min) ved download/visning.
+- Storage-policies: læs for authenticated, upload/slet for admin + process_owner.
 
-- Designet og UI-strukturen
-- Flowet i Upload & Improve (stadig simuleret AI — ægte AI er et senere skridt)
-- Sidernes layout og navigation
+## RLS
+Opdaterer policies på `knowledge_items`:
+- `INSERT/UPDATE/DELETE`: admin OR process_owner.
+- `SELECT`: uændret (admin OR global OR egen afdeling).
+
+## Tekst-udtræk (til AI)
+
+Sker client-side ved upload:
+- **Word (.docx)**: `mammoth` → HTML → markdown (allerede installeret).
+- **PDF**: `pdfjs-dist` → side-for-side tekstudtræk.
+
+Den udtrukne tekst gemmes i `extracted_text`. Hvis udtræk fejler, gemmes filen alligevel og brugeren får besked om at "Brug i AI" ikke kan slås til.
+
+AI-forbedrings-flowet (vidensbank-tællingen i `UploadImprove`) udvides så det inkluderer dokumenter hvor `active=true` og `use_in_ai=true`, og bruger `extracted_text` som regelindhold.
+
+## Tekniske detaljer
+
+Filer der ændres/oprettes:
+- Migration: nye kolonner på `knowledge_items`, opdaterede RLS-policies, storage-policies på `uploads`.
+- `src/pages/Knowledge.tsx`: ny upload-dialog, file-list visning, åbn/download-knapper, "Brug i AI"-toggle for admin.
+- Ny util `src/lib/extractText.ts`: `extractFromDocx(file)` og `extractFromPdf(file)`.
+- `src/pages/UploadImprove.tsx`: udvider knowledge-count og evt. AI-prompt så dokumenter med `use_in_ai=true` tæller med.
+- `package.json`: tilføjer `pdfjs-dist`.
+
+Filstørrelses-grænse: 10 MB (valideres client-side før upload).
+
+## Out of scope
+- Versionering af dokumenter (overskriv = ny upload, gammel slettes).
+- OCR af scannede PDF'er (kun tekst-baserede PDF'er understøttes til AI-brug; filen kan stadig uploades som ren reference).
+- Preview/inline-visning af PDF (åbnes i ny fane).
