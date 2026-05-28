@@ -14,6 +14,30 @@ export type Database = {
   }
   public: {
     Tables: {
+      dashboard_preferences: {
+        Row: {
+          fav_ids: string[]
+          order_ids: string[]
+          pinned_ids: string[]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          fav_ids?: string[]
+          order_ids?: string[]
+          pinned_ids?: string[]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          fav_ids?: string[]
+          order_ids?: string[]
+          pinned_ids?: string[]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       departments: {
         Row: {
           created_at: string
