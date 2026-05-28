@@ -31,9 +31,9 @@ export default function UploadImprove() {
   const [claudeOutput, setClaudeOutput] = useState<string>("");
   const [claudeLoading, setClaudeLoading] = useState(false);
   const [improveLoading, setImproveLoading] = useState(false);
+  const [saveLoading, setSaveLoading] = useState(false);
   const improvedRef = useRef<HTMLDivElement | null>(null);
 
-  // Shared HTML -> Markdown converter (preserves tables, headings, images)
   const htmlToMarkdown = (html: string) => {
     const td = new TurndownService({
       headingStyle: "atx",
@@ -117,7 +117,6 @@ export default function UploadImprove() {
     try {
       const isImage = /\.(png|jpe?g)$/i.test(name) || f.type.startsWith("image/");
       if (isImage) {
-        // Images: don't set local draft, send straight to Claude
         setExtractedImages([]);
         await parseWithClaude(f);
         return;
@@ -139,12 +138,7 @@ export default function UploadImprove() {
         const markdown = htmlToMarkdown(result.value);
         setDraft(markdown);
         setExtractedImages(images);
-        if (images.length > 0) {
-          toast.success(`Word-dokument indlæst (${images.length} billede(r) fundet)`);
-        } else {
-          toast.success("Word-dokument indlæst");
-        }
-        // Also send to Claude for richer structured parsing
+        toast.success(images.length > 0 ? `Word-dokument indlæst (${images.length} billede(r) fundet)` : "Word-dokument indlæst");
         parseWithClaude(f);
       } else if (name.endsWith(".doc")) {
         toast.error("Gamle .doc-filer understøttes ikke. Gem som .docx.");
@@ -155,7 +149,6 @@ export default function UploadImprove() {
         toast.success("HTML-dokument konverteret til markdown");
       } else {
         const text = await f.text();
-        // If a .txt/.md happens to contain HTML markup (e.g. pasted from Word/web), convert it
         setDraft(looksLikeHtml(text) ? htmlToMarkdown(text) : text);
         setExtractedImages([]);
       }
@@ -169,7 +162,6 @@ export default function UploadImprove() {
     setIsDragging(false);
     const f = e.dataTransfer.files?.[0];
     if (f) { handleFile(f); return; }
-    // Support dragging selected HTML/text from a browser or Word web
     const html = e.dataTransfer.getData("text/html");
     const plain = e.dataTransfer.getData("text/plain");
     if (html) {
@@ -185,12 +177,10 @@ export default function UploadImprove() {
     if (html && looksLikeHtml(html)) {
       e.preventDefault();
       const md = htmlToMarkdown(html);
-      // Insert at cursor position
       const ta = e.currentTarget;
       const start = ta.selectionStart ?? draft.length;
       const end = ta.selectionEnd ?? draft.length;
-      const next = draft.slice(0, start) + md + draft.slice(end);
-      setDraft(next);
+      setDraft(draft.slice(0, start) + md + draft.slice(end));
       toast.success("HTML konverteret til markdown ved indsætning");
     }
   };
@@ -201,7 +191,6 @@ export default function UploadImprove() {
 
     setImproveLoading(true);
     try {
-      // Hent aktive AI-regler tilgængelige for brugeren (RLS filtrerer scope/department)
       const { data: rules, error: rulesErr } = await supabase
         .from("knowledge_items")
         .select("title, type, content, extracted_text")
@@ -231,8 +220,7 @@ export default function UploadImprove() {
         throw new Error(msg);
       }
       if ((data as any)?.error) throw new Error((data as any).error);
-      const md = (data as any)?.markdown ?? "";
-      setImproved(md);
+      setImproved((data as any)?.markdown ?? "");
       toast.success("Forslag genereret");
     } catch (e: any) {
       toast.error("Forbedring fejlede: " + (e?.message ?? "ukendt fejl"));
@@ -241,70 +229,76 @@ export default function UploadImprove() {
     }
   };
 
-  const copyMarkdown = () => {
-    navigator.clipboard.writeText(improved).then(() => toast.success("Markdown kopieret"));
-  };
-
-  const copyAsText = () => {
-    const el = improvedRef.current;
-    const text = el ? (el.innerText || el.textContent || improved) : improved;
-    navigator.clipboard.writeText(text).then(() => toast.success("Tekst kopieret"));
-  };
-
-  const save = async () => {
-    if (!title.trim() || !improved) { toast.error("Mangler titel eller indhold"); return; }
-    // For non-admins, force their own department
+  // Shared save logic – pass the content to save and whether it was AI-improved
+  const saveContent = async (content: string, aiGenerated: boolean) => {
+    if (!title.trim() || !content.trim()) { toast.error("Mangler titel eller indhold"); return; }
     const effectiveDeptId = isAdmin ? departmentId : (profile?.department_id ?? departmentId);
     if (!effectiveDeptId) { toast.error("Vælg en afdeling"); return; }
     if (!profile) return;
     if (!canEdit) { toast.error("Du har ikke rettigheder til at oprette processer"); return; }
 
-    let filePath: string | null = null;
-    if (file) {
-      const path = `${profile.id}/${Date.now()}-${file.name}`;
-      const { error: upErr } = await supabase.storage.from("uploads").upload(path, file);
-      if (upErr) { toast.error("Filupload fejlede: " + upErr.message); return; }
-      filePath = path;
-      await supabase.from("uploads").insert({
-        file_path: path, original_text: draft, title, department_id: effectiveDeptId, created_by: profile.id,
+    setSaveLoading(true);
+    try {
+      if (file) {
+        const path = `${profile.id}/${Date.now()}-${file.name}`;
+        const { error: upErr } = await supabase.storage.from("uploads").upload(path, file);
+        if (upErr) { toast.error("Filupload fejlede: " + upErr.message); return; }
+        await supabase.from("uploads").insert({
+          file_path: path, original_text: draft, title, department_id: effectiveDeptId, created_by: profile.id,
+        });
+      } else if (draft) {
+        await supabase.from("uploads").insert({
+          file_path: null, original_text: draft, title, department_id: effectiveDeptId, created_by: profile.id,
+        });
+      }
+
+      const { data: proc, error: procErr } = await supabase.from("processes").insert({
+        title, content, department_id: effectiveDeptId, status: "Draft",
+        owner_id: profile.id, owner_name: profile.full_name,
+        tags: [(departments.find(d => d.id === effectiveDeptId)?.name ?? "").toLowerCase(), "ny"],
+        quality_score: scoreQuality(content),
+      }).select("id").single();
+
+      if (procErr || !proc) { toast.error(procErr?.message ?? "Kunne ikke gemme"); return; }
+
+      await supabase.from("process_versions").insert({
+        process_id: proc.id, content,
+        created_by_id: profile.id, created_by_name: profile.full_name,
+        ai_generated: aiGenerated,
+        notes: aiGenerated ? "Første version (forbedret udkast)" : "Første version (uploadet uden AI-forbedring)",
       });
-    } else if (draft) {
-      await supabase.from("uploads").insert({
-        file_path: null, original_text: draft, title, department_id: effectiveDeptId, created_by: profile.id,
-      });
+
+      toast.success("Proces gemt i biblioteket");
+      navigate(`/process/${proc.id}`);
+    } finally {
+      setSaveLoading(false);
     }
-
-    const { data: proc, error: procErr } = await supabase.from("processes").insert({
-      title, content: improved, department_id: effectiveDeptId, status: "Draft",
-      owner_id: profile.id, owner_name: profile.full_name,
-      tags: [(departments.find(d => d.id === effectiveDeptId)?.name ?? "").toLowerCase(), "ny"],
-      quality_score: scoreQuality(improved),
-    }).select("id").single();
-
-    if (procErr || !proc) { toast.error(procErr?.message ?? "Kunne ikke gemme"); return; }
-
-    await supabase.from("process_versions").insert({
-      process_id: proc.id, content: improved,
-      created_by_id: profile.id, created_by_name: profile.full_name,
-      ai_generated: true, notes: "Første version (forbedret udkast)",
-    });
-
-    toast.success("Proces gemt i biblioteket");
-    navigate(`/process/${proc.id}`);
   };
+
+  const copyMarkdown = () => navigator.clipboard.writeText(improved).then(() => toast.success("Markdown kopieret"));
+  const copyAsText = () => {
+    const el = improvedRef.current;
+    navigator.clipboard.writeText(el ? (el.innerText || el.textContent || improved) : improved)
+      .then(() => toast.success("Tekst kopieret"));
+  };
+
+  // The content ready to save (either AI-improved or raw draft)
+  const contentToSave = improved || draft || claudeOutput;
+  const canSave = canEdit && !!title.trim() && !!contentToSave.trim();
 
   return (
     <div className="space-y-6 max-w-6xl">
       <div>
         <h1 className="text-2xl font-bold">Upload & forbedr proces</h1>
-        <p className="text-sm text-muted-foreground">Smid et halvfærdigt udkast ind — få et struktureret forslag tilbage.</p>
+        <p className="text-sm text-muted-foreground">Smid et halvfærdigt udkast ind — gem direkte eller få et forbedret forslag.</p>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
+        {/* LEFT: Input */}
         <Card className="shadow-card">
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2"><FileUp className="h-4 w-4" />Dit udkast</CardTitle>
-            <CardDescription>Indsæt tekst eller upload en .txt/.md fil</CardDescription>
+            <CardDescription>Indsæt tekst eller upload en .txt/.md/.docx fil</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="grid gap-2 sm:grid-cols-2">
@@ -315,18 +309,15 @@ export default function UploadImprove() {
               <div>
                 <Label>Afdeling</Label>
                 <Select value={departmentId} onValueChange={setDepartmentId} disabled={!isAdmin}>
-                  <SelectTrigger>
-                    <SelectValue placeholder={isAdmin ? "Vælg hvor processen skal gemmes" : "Din afdeling"} />
-                  </SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder={isAdmin ? "Vælg afdeling" : "Din afdeling"} /></SelectTrigger>
                   <SelectContent>
                     {departments.map((d) => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
-                {!isAdmin && (
-                  <p className="text-[11px] text-muted-foreground mt-1">Gemmes automatisk i din afdeling.</p>
-                )}
+                {!isAdmin && <p className="text-[11px] text-muted-foreground mt-1">Gemmes automatisk i din afdeling.</p>}
               </div>
             </div>
+
             <div>
               <Label htmlFor="file" className="text-xs">Upload fil (valgfri)</Label>
               <div
@@ -336,33 +327,27 @@ export default function UploadImprove() {
                 className={`rounded-lg border-2 border-dashed p-4 text-center text-xs transition-smooth ${isDragging ? "border-primary bg-primary/5" : "border-muted"}`}
               >
                 <Input
-                  id="file"
-                  type="file"
+                  id="file" type="file"
                   accept=".txt,.md,.docx,.html,.htm,.png,.jpg,.jpeg,image/png,image/jpeg"
                   onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
                 />
-                <p className="mt-2 text-muted-foreground">
-                  Træk og slip .docx, .png, .jpg, .html, .txt eller .md filer her. Word og billeder parses automatisk af Claude.
-                </p>
-                {file && (
-                  <p className="mt-1 text-success">Valgt: {file.name}</p>
-                )}
+                <p className="mt-2 text-muted-foreground">Træk og slip .docx, .png, .jpg, .html, .txt eller .md filer her.</p>
+                {file && <p className="mt-1 text-success">Valgt: {file.name}</p>}
               </div>
             </div>
+
             {(claudeLoading || claudeOutput) && (
               <Card className="border-accent/40">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm flex items-center gap-2">
-                    <Bot className="h-4 w-4 text-accent" />
-                    Claude parsing (claude-sonnet-4)
+                    <Bot className="h-4 w-4 text-accent" />Claude parsing
                   </CardTitle>
                   <CardDescription className="text-xs">Struktureret udtræk med tabeller og fremhævninger</CardDescription>
                 </CardHeader>
                 <CardContent>
                   {claudeLoading ? (
                     <div className="flex items-center gap-2 text-sm text-muted-foreground py-6 justify-center">
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      Claude læser dokumentet…
+                      <Loader2 className="h-4 w-4 animate-spin" />Claude læser dokumentet…
                     </div>
                   ) : (
                     <div className="space-y-2">
@@ -370,14 +355,11 @@ export default function UploadImprove() {
                         [&_table]:w-full [&_table]:border-collapse [&_table]:my-2
                         [&_th]:border [&_th]:border-border [&_th]:bg-muted [&_th]:px-2 [&_th]:py-1 [&_th]:text-left
                         [&_td]:border [&_td]:border-border [&_td]:px-2 [&_td]:py-1
-                        [&_h1]:text-base [&_h2]:text-sm [&_h3]:text-sm [&_h1]:font-bold [&_h2]:font-semibold [&_h3]:font-semibold
-                        [&_pre]:bg-muted [&_pre]:p-2 [&_pre]:rounded">
+                        [&_h1]:text-base [&_h2]:text-sm [&_h3]:text-sm [&_h1]:font-bold [&_h2]:font-semibold [&_h3]:font-semibold">
                         <ReactMarkdown remarkPlugins={[remarkGfm]}>{claudeOutput}</ReactMarkdown>
                       </div>
                       <div className="flex gap-2">
-                        <Button size="sm" variant="outline" onClick={() => setDraft(claudeOutput)}>
-                          Brug som udkast
-                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => setDraft(claudeOutput)}>Brug som udkast</Button>
                         <Button size="sm" variant="ghost" onClick={() => navigator.clipboard.writeText(claudeOutput).then(() => toast.success("Kopieret"))}>
                           Kopier markdown
                         </Button>
@@ -387,6 +369,7 @@ export default function UploadImprove() {
                 </CardContent>
               </Card>
             )}
+
             {extractedImages.length > 0 && (
               <div className="rounded-lg border bg-muted/30 p-2">
                 <p className="text-xs font-medium mb-2">Billeder fra dokumentet ({extractedImages.length})</p>
@@ -397,14 +380,32 @@ export default function UploadImprove() {
                 </div>
               </div>
             )}
-            <Textarea value={draft} onChange={(e) => setDraft(e.target.value)} onPaste={onPasteDraft} placeholder="Indsæt dit procesudkast her (HTML fra Word/web konverteres automatisk)..." rows={12} className="font-mono text-xs" />
-            <Button onClick={improveWithClaude} disabled={improveLoading} className="w-full bg-gradient-primary hover:opacity-90 transition-smooth">
-              {improveLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wand2 className="mr-2 h-4 w-4" />}
-              Forbedr forslag
-            </Button>
+
+            <Textarea
+              value={draft} onChange={(e) => setDraft(e.target.value)} onPaste={onPasteDraft}
+              placeholder="Indsæt dit procesudkast her..." rows={12} className="font-mono text-xs"
+            />
+
+            <div className="flex flex-col gap-2">
+              <Button onClick={improveWithClaude} disabled={improveLoading} className="w-full bg-gradient-primary hover:opacity-90">
+                {improveLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wand2 className="mr-2 h-4 w-4" />}
+                Forbedr med AI og vidensbank
+              </Button>
+              {/* Save without AI — available as soon as there's a draft */}
+              {(draft.trim() || claudeOutput.trim()) && !improved && (
+                <Button
+                  variant="outline" onClick={() => saveContent(draft || claudeOutput, false)}
+                  disabled={saveLoading || !canSave} className="w-full"
+                >
+                  {saveLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                  Gem uden AI-forbedring
+                </Button>
+              )}
+            </div>
           </CardContent>
         </Card>
 
+        {/* RIGHT: AI result */}
         <Card className="shadow-card">
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2"><Sparkles className="h-4 w-4 text-accent" />Forbedret forslag</CardTitle>
@@ -438,14 +439,16 @@ export default function UploadImprove() {
                     <FileText className="mr-2 h-3 w-3" />Kopier som tekst
                   </Button>
                 </div>
-                <Button onClick={save} variant="default" className="w-full" disabled={!canEdit}>
-                  <Save className="mr-2 h-4 w-4" />Gem i bibliotek
+                <Button onClick={() => saveContent(improved, true)} variant="default" className="w-full" disabled={saveLoading || !canEdit}>
+                  {saveLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                  Gem forbedret version i bibliotek
                 </Button>
                 {!canEdit && <p className="text-xs text-muted-foreground text-center">Din rolle (Viewer) kan ikke oprette processer.</p>}
               </>
             ) : (
-              <div className="rounded-lg border-2 border-dashed p-12 text-center text-sm text-muted-foreground">
-                Forslaget vises her, når du har klikket på <span className="font-medium">Forbedr forslag</span>.
+              <div className="rounded-lg border-2 border-dashed p-12 text-center text-sm text-muted-foreground space-y-2">
+                <p>Forslaget vises her efter AI-forbedring.</p>
+                <p className="text-xs">Eller gem direkte fra venstre side uden AI-forbedring.</p>
               </div>
             )}
           </CardContent>
