@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Process } from "@/lib/types";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
@@ -19,6 +19,7 @@ export default function Dashboard() {
   const [allProcesses, setAllProcesses] = useState<Process[]>([]);
   const [loading, setLoading] = useState(true);
   const [loaded, setLoaded] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
   const [pinnedIds, setPinnedIds] = useState<string[]>([]);
   const [order, setOrder] = useState<string[]>([]);
   const [favIds, setFavIds] = useState<string[]>([]);
@@ -31,32 +32,97 @@ export default function Dashboard() {
   const [aiOpen, setAiOpen] = useState(false);
   const [detailProcess, setDetailProcess] = useState<Process | null>(null);
 
-  // Load persisted layout
+  // Load persisted layout from database (with localStorage one-time migration)
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed.pinnedIds)) setPinnedIds(parsed.pinnedIds);
-        if (Array.isArray(parsed.order)) setOrder(parsed.order);
+    let active = true;
+    (async () => {
+      const { data: auth } = await supabase.auth.getUser();
+      const uid = auth.user?.id ?? null;
+      if (!active) return;
+      setUserId(uid);
+      if (!uid) {
+        setLoaded(true);
+        return;
       }
-      const favs = localStorage.getItem(FAVS_KEY);
-      if (favs) setFavIds(JSON.parse(favs));
-    } catch {
-      // ignore
-    }
-    setLoaded(true);
+      const { data } = await supabase
+        .from("dashboard_preferences")
+        .select("pinned_ids, order_ids, fav_ids")
+        .eq("user_id", uid)
+        .maybeSingle();
+      if (!active) return;
+
+      const hasRow =
+        data &&
+        ((data.pinned_ids?.length ?? 0) > 0 ||
+          (data.order_ids?.length ?? 0) > 0 ||
+          (data.fav_ids?.length ?? 0) > 0);
+
+      if (hasRow) {
+        setPinnedIds(data!.pinned_ids ?? []);
+        setOrder(data!.order_ids ?? []);
+        setFavIds(data!.fav_ids ?? []);
+      } else {
+        // One-time migration from localStorage
+        let migratedPinned: string[] = [];
+        let migratedOrder: string[] = [];
+        let migratedFavs: string[] = [];
+        try {
+          const raw = localStorage.getItem(STORAGE_KEY);
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            if (Array.isArray(parsed.pinnedIds)) migratedPinned = parsed.pinnedIds;
+            if (Array.isArray(parsed.order)) migratedOrder = parsed.order;
+          }
+          const favs = localStorage.getItem(FAVS_KEY);
+          if (favs) migratedFavs = JSON.parse(favs);
+        } catch {
+          // ignore
+        }
+        setPinnedIds(migratedPinned);
+        setOrder(migratedOrder);
+        setFavIds(migratedFavs);
+        if (migratedPinned.length || migratedOrder.length || migratedFavs.length) {
+          await supabase.from("dashboard_preferences").upsert(
+            {
+              user_id: uid,
+              pinned_ids: migratedPinned,
+              order_ids: migratedOrder,
+              fav_ids: migratedFavs,
+            },
+            { onConflict: "user_id" }
+          );
+        }
+      }
+      setLoaded(true);
+    })();
+    return () => {
+      active = false;
+    };
   }, []);
 
+  // Debounced persist to database
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
-    if (!loaded) return;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ pinnedIds, order }));
-  }, [pinnedIds, order, loaded]);
-
-  useEffect(() => {
-    if (!loaded) return;
-    localStorage.setItem(FAVS_KEY, JSON.stringify(favIds));
-  }, [favIds, loaded]);
+    if (!loaded || !userId) return;
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => {
+      supabase
+        .from("dashboard_preferences")
+        .upsert(
+          {
+            user_id: userId,
+            pinned_ids: pinnedIds,
+            order_ids: order,
+            fav_ids: favIds,
+          },
+          { onConflict: "user_id" }
+        )
+        .then(() => {});
+    }, 500);
+    return () => {
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+    };
+  }, [pinnedIds, order, favIds, loaded, userId]);
 
   // Fetch processes
   useEffect(() => {
