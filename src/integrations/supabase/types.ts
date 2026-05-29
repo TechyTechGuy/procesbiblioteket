@@ -169,10 +169,12 @@ export type Database = {
           owner_id: string | null
           owner_name: string
           quality_score: number
+          shared_department_ids: string[]
           status: Database["public"]["Enums"]["process_status"]
           tags: string[]
           title: string
           updated_at: string
+          visible_to_all: boolean
         }
         Insert: {
           content?: string
@@ -183,10 +185,12 @@ export type Database = {
           owner_id?: string | null
           owner_name?: string
           quality_score?: number
+          shared_department_ids?: string[]
           status?: Database["public"]["Enums"]["process_status"]
           tags?: string[]
           title: string
           updated_at?: string
+          visible_to_all?: boolean
         }
         Update: {
           content?: string
@@ -197,10 +201,12 @@ export type Database = {
           owner_id?: string | null
           owner_name?: string
           quality_score?: number
+          shared_department_ids?: string[]
           status?: Database["public"]["Enums"]["process_status"]
           tags?: string[]
           title?: string
           updated_at?: string
+          visible_to_all?: boolean
         }
         Relationships: [
           {
