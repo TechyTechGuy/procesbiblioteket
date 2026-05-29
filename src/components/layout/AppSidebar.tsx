@@ -1,4 +1,4 @@
-import { LayoutDashboard, Upload, Library, Users, BookOpen } from "lucide-react";
+import { Library, Users, BookOpen } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import {
   Sidebar,
@@ -15,8 +15,6 @@ import {
 import { useAuth } from "@/lib/auth";
 
 const items = [
-  { title: "Dashboard", url: "/", icon: LayoutDashboard },
-  { title: "Upload & Forbedr", url: "/upload", icon: Upload },
   { title: "Procesbibliotek", url: "/library", icon: Library },
   { title: "Vidensbank", url: "/knowledge", icon: BookOpen },
 ];
