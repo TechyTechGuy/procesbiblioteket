@@ -132,6 +132,35 @@ export function QuickUploadDialog({ open, onOpenChange }: Props) {
             <Textarea id="qu-content" value={content} onChange={(e) => setContent(e.target.value)}
               placeholder="Indsæt procestekst her..." rows={10} className="font-mono text-xs" />
           </div>
+          <div className="space-y-2 rounded-md border p-3">
+            <div className="flex items-center gap-2">
+              <Checkbox id="qu-all" checked={visibleToAll}
+                onCheckedChange={(v) => setVisibleToAll(!!v)} />
+              <Label htmlFor="qu-all" className="text-sm font-normal cursor-pointer">
+                Synlig for hele organisationen
+              </Label>
+            </div>
+            {!visibleToAll && (
+              <div>
+                <Label className="text-xs">Del også med afdelinger (valgfri)</Label>
+                <div className="grid grid-cols-2 gap-1 mt-1">
+                  {departments
+                    .filter((d) => d.id !== (isAdmin ? departmentId : profile?.department_id))
+                    .map((d) => {
+                      const checked = sharedDeptIds.includes(d.id);
+                      return (
+                        <label key={d.id} className="flex items-center gap-2 text-sm cursor-pointer">
+                          <Checkbox checked={checked} onCheckedChange={(v) => {
+                            setSharedDeptIds((prev) => v ? [...prev, d.id] : prev.filter(x => x !== d.id));
+                          }} />
+                          {d.name}
+                        </label>
+                      );
+                    })}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>Annullér</Button>
