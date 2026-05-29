@@ -3,7 +3,6 @@ import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import Index from "./pages/Index.tsx";
 import NotFound from "./pages/NotFound.tsx";
 import UploadImprove from "./pages/UploadImprove";
 import Library from "./pages/Library";
@@ -36,7 +35,7 @@ const App = () => (
                 <ProtectedRoute>
                   <AppLayout>
                     <Routes>
-                      <Route path="/" element={<Index />} />
+                      <Route path="/" element={<Library />} />
                       <Route path="/upload" element={<UploadImprove />} />
                       <Route path="/library" element={<Library />} />
                       <Route path="/process/:id" element={<ProcessDetail />} />
