@@ -12,6 +12,7 @@ import Admin from "./pages/Admin";
 import Auth from "./pages/Auth";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
+import AccountSettings from "./pages/AccountSettings";
 import { AuthProvider } from "./lib/auth";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { AppLayout } from "./components/layout/AppLayout";
@@ -43,6 +44,7 @@ const App = () => (
                       <Route path="/process/:id" element={<ProcessDetail />} />
                       <Route path="/knowledge" element={<Knowledge />} />
                       <Route path="/admin" element={<Admin />} />
+                      <Route path="/account" element={<AccountSettings />} />
                       <Route path="*" element={<NotFound />} />
                     </Routes>
                   </AppLayout>

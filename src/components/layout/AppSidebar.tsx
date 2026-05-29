@@ -1,4 +1,4 @@
-import { Library, Users, BookOpen } from "lucide-react";
+import { Library, Users, BookOpen, KeyRound } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import {
   Sidebar,
@@ -19,6 +19,7 @@ const items = [
   { title: "Vidensbank", url: "/knowledge", icon: BookOpen },
 ];
 const adminItems = [{ title: "Brugere & adgang", url: "/admin", icon: Users }];
+const accountItems = [{ title: "Min konto", url: "/account", icon: KeyRound }];
 
 export function AppSidebar() {
   const { state } = useSidebar();
@@ -78,6 +79,24 @@ export function AppSidebar() {
             </SidebarGroupContent>
           </SidebarGroup>
         )}
+
+        <SidebarGroup>
+          <SidebarGroupLabel>Konto</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {accountItems.map((item) => (
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton asChild>
+                    <NavLink to={item.url} end className="hover:bg-muted/50" activeClassName="bg-muted text-primary font-medium">
+                      <item.icon className="mr-2 h-4 w-4" />
+                      {!collapsed && <span>{item.title}</span>}
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
       </SidebarContent>
     </Sidebar>
   );
