@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useAuth, scoreQuality } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -35,6 +36,8 @@ export function QuickUploadDialog({ open, onOpenChange }: Props) {
   const [content, setContent] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
+  const [visibleToAll, setVisibleToAll] = useState(false);
+  const [sharedDeptIds, setSharedDeptIds] = useState<string[]>([]);
 
   useEffect(() => {
     if (!departmentId && profile?.department_id) setDepartmentId(profile.department_id);
@@ -75,6 +78,8 @@ export function QuickUploadDialog({ open, onOpenChange }: Props) {
         owner_id: profile.id, owner_name: profile.full_name,
         tags: [(departments.find(d => d.id === effectiveDeptId)?.name ?? "").toLowerCase(), "ny"],
         quality_score: scoreQuality(content),
+        visible_to_all: visibleToAll,
+        shared_department_ids: visibleToAll ? [] : sharedDeptIds,
       }).select("id").single();
       if (error || !proc) { toast.error(error?.message ?? "Kunne ikke gemme"); return; }
 
@@ -87,6 +92,7 @@ export function QuickUploadDialog({ open, onOpenChange }: Props) {
       toast.success("Kladde gemt");
       onOpenChange(false);
       setTitle(""); setContent(""); setFile(null);
+      setVisibleToAll(false); setSharedDeptIds([]);
       navigate(`/process/${proc.id}`);
     } finally {
       setSaving(false);
@@ -125,6 +131,35 @@ export function QuickUploadDialog({ open, onOpenChange }: Props) {
             <Label htmlFor="qu-content">…eller indsæt tekst</Label>
             <Textarea id="qu-content" value={content} onChange={(e) => setContent(e.target.value)}
               placeholder="Indsæt procestekst her..." rows={10} className="font-mono text-xs" />
+          </div>
+          <div className="space-y-2 rounded-md border p-3">
+            <div className="flex items-center gap-2">
+              <Checkbox id="qu-all" checked={visibleToAll}
+                onCheckedChange={(v) => setVisibleToAll(!!v)} />
+              <Label htmlFor="qu-all" className="text-sm font-normal cursor-pointer">
+                Synlig for hele organisationen
+              </Label>
+            </div>
+            {!visibleToAll && (
+              <div>
+                <Label className="text-xs">Del også med afdelinger (valgfri)</Label>
+                <div className="grid grid-cols-2 gap-1 mt-1">
+                  {departments
+                    .filter((d) => d.id !== (isAdmin ? departmentId : profile?.department_id))
+                    .map((d) => {
+                      const checked = sharedDeptIds.includes(d.id);
+                      return (
+                        <label key={d.id} className="flex items-center gap-2 text-sm cursor-pointer">
+                          <Checkbox checked={checked} onCheckedChange={(v) => {
+                            setSharedDeptIds((prev) => v ? [...prev, d.id] : prev.filter(x => x !== d.id));
+                          }} />
+                          {d.name}
+                        </label>
+                      );
+                    })}
+                </div>
+              </div>
+            )}
           </div>
         </div>
         <DialogFooter>
