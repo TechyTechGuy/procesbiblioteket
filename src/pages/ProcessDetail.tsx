@@ -4,6 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { StatusBadge } from "@/components/StatusBadge";
 import { QualityMeter } from "@/components/QualityMeter";
 import { ArrowLeft, Lock, Save, History, Copy, FileText, Pencil, Eye, X, Wand2, Loader2 } from "lucide-react";
@@ -39,6 +40,7 @@ export default function ProcessDetail() {
   const [process, setProcess] = useState<ProcessRow | null>(null);
   const [versions, setVersions] = useState<VersionRow[]>([]);
   const [content, setContent] = useState("");
+  const [title, setTitle] = useState("");
   const [status, setStatus] = useState<Status>("Draft");
   const [notFound, setNotFound] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -52,7 +54,7 @@ export default function ProcessDetail() {
     const { data, error } = await supabase.from("processes").select("*").eq("id", id).maybeSingle();
     if (error || !data) { setNotFound(true); setLoading(false); return; }
     setProcess(data as ProcessRow);
-    setContent(data.content); setStatus(data.status as Status);
+    setContent(data.content); setStatus(data.status as Status); setTitle(data.title);
     const { data: vers } = await supabase
       .from("process_versions").select("*").eq("process_id", id)
       .order("created_at", { ascending: false });
@@ -79,9 +81,11 @@ export default function ProcessDetail() {
   const deptName = departments.find((d) => d.id === process.department_id)?.name ?? "—";
 
   const save = async () => {
+    const trimmedTitle = title.trim();
+    if (!trimmedTitle) { toast.error("Titel må ikke være tom"); return; }
     const newScore = scoreQuality(content);
     const { error: upErr } = await supabase.from("processes").update({
-      content, status, quality_score: newScore,
+      title: trimmedTitle, content, status, quality_score: newScore,
     }).eq("id", process.id);
     if (upErr) { toast.error(upErr.message); return; }
     const { error: vErr } = await supabase.from("process_versions").insert({
@@ -110,6 +114,7 @@ export default function ProcessDetail() {
 
   const cancelEdit = () => {
     setContent(process?.content ?? "");
+    setTitle(process?.title ?? "");
     setIsEditing(false);
   };
 
@@ -165,7 +170,15 @@ export default function ProcessDetail() {
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
         <div>
           <div className="flex items-center gap-2 flex-wrap">
-            <h1 className="text-2xl font-bold">{process.title}</h1>
+            {isEditing && editable ? (
+              <Input
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                className="text-2xl font-bold h-auto py-1 px-2 max-w-xl"
+              />
+            ) : (
+              <h1 className="text-2xl font-bold">{process.title}</h1>
+            )}
             <StatusBadge status={process.status} />
           </div>
           <p className="text-sm text-muted-foreground mt-1">{deptName} · Owner: {process.owner_name} · Opdateret {new Date(process.updated_at).toLocaleDateString("da-DK")}</p>
