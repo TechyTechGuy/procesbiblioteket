@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from "@/components/ui/alert-dialog";
 import { useAuth } from "@/lib/auth";
 import { Role, ROLES, ROLE_LABEL } from "@/lib/types";
-import { Plus, Trash2, ShieldCheck, Lock, RotateCcw } from "lucide-react";
+import { Plus, Trash2, ShieldCheck, Lock, RotateCcw, Eye, EyeOff, Wand2, Copy } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -34,6 +34,8 @@ export default function Admin() {
   const [newEmail, setNewEmail] = useState("");
   const [newRole, setNewRole] = useState<Role>("viewer");
   const [newDeptId, setNewDeptId] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [creating, setCreating] = useState(false);
 
   // Delete dialog
@@ -88,6 +90,7 @@ export default function Admin() {
   // ---- Opret bruger ----
   const handleCreateUser = async () => {
     if (!newName.trim() || !newEmail.trim()) return;
+    if (newPassword.length < 8) { toast.error("Password skal være mindst 8 tegn"); return; }
     setCreating(true);
 
     const { data, error } = await supabase.functions.invoke("admin-invite-user", {
@@ -96,20 +99,23 @@ export default function Admin() {
         full_name: newName.trim(),
         role: newRole,
         department_id: newDeptId || null,
+        password: newPassword,
       },
     });
 
     if (error || (data && (data as any).error)) {
-      toast.error(error?.message || (data as any)?.error || "Kunne ikke invitere bruger");
+      toast.error(error?.message || (data as any)?.error || "Kunne ikke oprette bruger");
       setCreating(false);
       return;
     }
 
-    toast.success(`Invitation sendt til ${newEmail}`);
+    toast.success(`Bruger oprettet — del login med ${newEmail}`);
     setNewName("");
     setNewEmail("");
     setNewRole("viewer");
     setNewDeptId("");
+    setNewPassword("");
+    setShowPassword(false);
     setCreating(false);
     setCreateOpen(false);
     loadUsers();
@@ -187,7 +193,7 @@ export default function Admin() {
                 <CardDescription>Brugere oprettes ved selv at registrere sig på login-siden. Her kan du ændre rolle og afdeling.</CardDescription>
               </div>
               <Button onClick={() => setCreateOpen(true)} size="sm" className="gap-1.5 shrink-0">
-                <Plus className="h-4 w-4" />Invitér bruger
+                <Plus className="h-4 w-4" />Opret bruger
               </Button>
             </CardHeader>
             <CardContent>
@@ -313,7 +319,7 @@ export default function Admin() {
       {/* ---- Opret bruger modal ---- */}
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent className="sm:max-w-md">
-          <DialogHeader><DialogTitle>Invitér ny bruger</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>Opret ny bruger</DialogTitle></DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid gap-1.5">
               <Label htmlFor="new-name">Navn</Label>
@@ -322,6 +328,45 @@ export default function Admin() {
             <div className="grid gap-1.5">
               <Label htmlFor="new-email">Email</Label>
               <Input id="new-email" type="email" placeholder="bruger@eksempel.dk" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} />
+            </div>
+            <div className="grid gap-1.5">
+              <Label htmlFor="new-pw">Password (min. 8 tegn)</Label>
+              <div className="flex gap-1">
+                <div className="relative flex-1">
+                  <Input
+                    id="new-pw"
+                    type={showPassword ? "text" : "password"}
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="Sæt et midlertidigt password"
+                    autoComplete="new-password"
+                  />
+                  <button type="button" onClick={() => setShowPassword((v) => !v)}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    aria-label={showPassword ? "Skjul" : "Vis"}>
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+                <Button type="button" variant="outline" size="icon" title="Generér password"
+                  onClick={() => {
+                    const bytes = new Uint8Array(12);
+                    crypto.getRandomValues(bytes);
+                    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$%";
+                    const pw = Array.from(bytes).map(b => chars[b % chars.length]).join("");
+                    setNewPassword(pw); setShowPassword(true);
+                  }}>
+                  <Wand2 className="h-4 w-4" />
+                </Button>
+                <Button type="button" variant="outline" size="icon" title="Kopiér"
+                  disabled={!newPassword}
+                  onClick={() => {
+                    navigator.clipboard.writeText(newPassword);
+                    toast.success("Password kopieret");
+                  }}>
+                  <Copy className="h-4 w-4" />
+                </Button>
+              </div>
+              <p className="text-[11px] text-muted-foreground">Del password med brugeren — de kan selv ændre det under "Min konto" efter login.</p>
             </div>
             <div className="grid gap-1.5">
               <Label>Rolle</Label>
@@ -340,8 +385,8 @@ export default function Admin() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setCreateOpen(false)} disabled={creating}>Annuller</Button>
-            <Button onClick={handleCreateUser} disabled={creating || !newName || !newEmail}>
-              {creating ? "Sender..." : "Send invitation"}
+            <Button onClick={handleCreateUser} disabled={creating || !newName || !newEmail || newPassword.length < 8}>
+              {creating ? "Opretter..." : "Opret bruger"}
             </Button>
           </DialogFooter>
         </DialogContent>
