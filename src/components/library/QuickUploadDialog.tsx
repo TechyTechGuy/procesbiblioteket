@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useAuth, scoreQuality } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -35,6 +36,8 @@ export function QuickUploadDialog({ open, onOpenChange }: Props) {
   const [content, setContent] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
+  const [visibleToAll, setVisibleToAll] = useState(false);
+  const [sharedDeptIds, setSharedDeptIds] = useState<string[]>([]);
 
   useEffect(() => {
     if (!departmentId && profile?.department_id) setDepartmentId(profile.department_id);
@@ -75,6 +78,8 @@ export function QuickUploadDialog({ open, onOpenChange }: Props) {
         owner_id: profile.id, owner_name: profile.full_name,
         tags: [(departments.find(d => d.id === effectiveDeptId)?.name ?? "").toLowerCase(), "ny"],
         quality_score: scoreQuality(content),
+        visible_to_all: visibleToAll,
+        shared_department_ids: visibleToAll ? [] : sharedDeptIds,
       }).select("id").single();
       if (error || !proc) { toast.error(error?.message ?? "Kunne ikke gemme"); return; }
 
@@ -87,6 +92,7 @@ export function QuickUploadDialog({ open, onOpenChange }: Props) {
       toast.success("Kladde gemt");
       onOpenChange(false);
       setTitle(""); setContent(""); setFile(null);
+      setVisibleToAll(false); setSharedDeptIds([]);
       navigate(`/process/${proc.id}`);
     } finally {
       setSaving(false);
