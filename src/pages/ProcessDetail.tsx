@@ -9,6 +9,7 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { QualityMeter } from "@/components/QualityMeter";
 import { ArrowLeft, Lock, Save, History, Copy, FileText, Pencil, Eye, X, Wand2, Loader2 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useState, useEffect, useRef } from "react";
 import { Status, STATUSES } from "@/lib/types";
 import { toast } from "sonner";
@@ -27,6 +28,7 @@ const proseClasses =
 interface ProcessRow {
   id: string; title: string; content: string; status: Status; owner_name: string;
   department_id: string; tags: string[]; quality_score: number; updated_at: string;
+  visible_to_all?: boolean; shared_department_ids?: string[];
 }
 interface VersionRow {
   id: string; content: string; created_by_name: string; created_at: string;
@@ -42,6 +44,8 @@ export default function ProcessDetail() {
   const [content, setContent] = useState("");
   const [title, setTitle] = useState("");
   const [status, setStatus] = useState<Status>("Draft");
+  const [visibleToAll, setVisibleToAll] = useState(false);
+  const [sharedDeptIds, setSharedDeptIds] = useState<string[]>([]);
   const [notFound, setNotFound] = useState(false);
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
@@ -55,6 +59,8 @@ export default function ProcessDetail() {
     if (error || !data) { setNotFound(true); setLoading(false); return; }
     setProcess(data as ProcessRow);
     setContent(data.content); setStatus(data.status as Status); setTitle(data.title);
+    setVisibleToAll(!!(data as any).visible_to_all);
+    setSharedDeptIds(((data as any).shared_department_ids as string[]) ?? []);
     const { data: vers } = await supabase
       .from("process_versions").select("*").eq("process_id", id)
       .order("created_at", { ascending: false });
@@ -86,6 +92,8 @@ export default function ProcessDetail() {
     const newScore = scoreQuality(content);
     const { error: upErr } = await supabase.from("processes").update({
       title: trimmedTitle, content, status, quality_score: newScore,
+      visible_to_all: visibleToAll,
+      shared_department_ids: visibleToAll ? [] : sharedDeptIds,
     }).eq("id", process.id);
     if (upErr) { toast.error(upErr.message); return; }
     const { error: vErr } = await supabase.from("process_versions").insert({
@@ -115,6 +123,8 @@ export default function ProcessDetail() {
   const cancelEdit = () => {
     setContent(process?.content ?? "");
     setTitle(process?.title ?? "");
+    setVisibleToAll(!!process?.visible_to_all);
+    setSharedDeptIds(process?.shared_department_ids ?? []);
     setIsEditing(false);
   };
 
