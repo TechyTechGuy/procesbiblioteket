@@ -278,6 +278,38 @@ export default function ProcessDetail() {
                 )}
               </div>
             </div>
+
+            {isEditing && editable && (
+              <div className="space-y-2 rounded-md border p-3">
+                <div className="flex items-center gap-2">
+                  <Checkbox id="pd-all" checked={visibleToAll}
+                    onCheckedChange={(v) => setVisibleToAll(!!v)} />
+                  <label htmlFor="pd-all" className="text-sm cursor-pointer">
+                    Synlig for hele organisationen
+                  </label>
+                </div>
+                {!visibleToAll && (
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">Del også med afdelinger (valgfri)</p>
+                    <div className="grid grid-cols-2 gap-1">
+                      {departments
+                        .filter((d) => d.id !== process.department_id)
+                        .map((d) => {
+                          const checked = sharedDeptIds.includes(d.id);
+                          return (
+                            <label key={d.id} className="flex items-center gap-2 text-sm cursor-pointer">
+                              <Checkbox checked={checked} onCheckedChange={(v) => {
+                                setSharedDeptIds((prev) => v ? [...prev, d.id] : prev.filter(x => x !== d.id));
+                              }} />
+                              {d.name}
+                            </label>
+                          );
+                        })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </CardContent></Card>
 
           {aiSuggestion && (
