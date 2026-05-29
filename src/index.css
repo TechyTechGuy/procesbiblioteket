@@ -8,102 +8,195 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    --background: 220 30% 98%;
-    --foreground: 222 47% 11%;
-
-    --card: 0 0% 100%;
-    --card-foreground: 222 47% 11%;
-
-    --popover: 0 0% 100%;
-    --popover-foreground: 222 47% 11%;
-
-    --primary: 222 70% 32%;
-    --primary-foreground: 210 40% 98%;
-    --primary-glow: 222 80% 55%;
-
-    --secondary: 220 20% 94%;
-    --secondary-foreground: 222 47% 11%;
-
-    --muted: 220 20% 96%;
-    --muted-foreground: 220 10% 45%;
-
-    --accent: 195 85% 45%;
-    --accent-foreground: 0 0% 100%;
+    --radius: 0.75rem;
+    --shadow-card: 0 2px 8px -2px hsl(0 0% 4% / 0.08);
+    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 
     --success: 142 70% 38%;
     --success-foreground: 0 0% 100%;
     --warning: 38 92% 50%;
-    --warning-foreground: 222 47% 11%;
-
+    --warning-foreground: 0 0% 10%;
     --destructive: 0 84% 60%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 220 16% 88%;
-    --input: 220 16% 88%;
-    --ring: 222 70% 32%;
-
-    --radius: 0.75rem;
-
-    --gradient-primary: linear-gradient(135deg, hsl(222 70% 32%), hsl(222 80% 55%));
-    --gradient-hero: linear-gradient(135deg, hsl(222 70% 32%) 0%, hsl(195 85% 45%) 100%);
-    --gradient-subtle: linear-gradient(180deg, hsl(220 30% 98%) 0%, hsl(220 20% 94%) 100%);
-    --shadow-elegant: 0 10px 30px -10px hsl(222 70% 32% / 0.25);
-    --shadow-card: 0 2px 8px -2px hsl(222 47% 11% / 0.08);
-    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-
-    --sidebar-background: 0 0% 98%;
-
-    --sidebar-foreground: 240 5.3% 26.1%;
-
-    --sidebar-primary: 240 5.9% 10%;
-
-    --sidebar-primary-foreground: 0 0% 98%;
-
-    --sidebar-accent: 240 4.8% 95.9%;
-
-    --sidebar-accent-foreground: 240 5.9% 10%;
-
-    --sidebar-border: 220 13% 91%;
-
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --destructive-foreground: 0 0% 98%;
   }
 
-  .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
+  /* ============ 3 — Light (default) ============ */
+  :root,
+  .theme-3.light {
+    --background: 24 60% 98%;
+    --foreground: 0 0% 7%;
 
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 7%;
 
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 7%;
 
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
+    --primary: 21 100% 54%;
+    --primary-foreground: 0 0% 100%;
+    --primary-glow: 24 100% 62%;
 
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary: 24 40% 94%;
+    --secondary-foreground: 0 0% 10%;
 
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
+    --muted: 24 30% 95%;
+    --muted-foreground: 0 0% 40%;
 
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
+    --accent: 0 0% 10%;
+    --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
+    --border: 24 25% 88%;
+    --input: 24 25% 88%;
+    --ring: 21 100% 54%;
 
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
+    --gradient-primary: linear-gradient(135deg, hsl(21 100% 54%), hsl(24 100% 62%));
+    --gradient-hero: linear-gradient(135deg, hsl(21 100% 54%) 0%, hsl(0 0% 10%) 100%);
+    --gradient-subtle: linear-gradient(180deg, hsl(24 60% 98%) 0%, hsl(24 50% 94%) 100%);
+    --shadow-elegant: 0 10px 30px -10px hsl(21 100% 54% / 0.35);
+
+    --sidebar-background: 0 0% 7%;
+    --sidebar-foreground: 0 0% 90%;
+    --sidebar-primary: 21 100% 54%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-accent: 0 0% 14%;
+    --sidebar-accent-foreground: 21 100% 60%;
+    --sidebar-border: 0 0% 16%;
+    --sidebar-ring: 21 100% 54%;
+  }
+
+  /* ============ 3 — Dark ============ */
+  .theme-3.dark {
+    --background: 0 0% 6%;
+    --foreground: 24 20% 96%;
+
+    --card: 0 0% 9%;
+    --card-foreground: 24 20% 96%;
+
+    --popover: 0 0% 9%;
+    --popover-foreground: 24 20% 96%;
+
+    --primary: 21 100% 56%;
+    --primary-foreground: 0 0% 7%;
+    --primary-glow: 24 100% 65%;
+
+    --secondary: 0 0% 14%;
+    --secondary-foreground: 24 20% 96%;
+
+    --muted: 0 0% 13%;
+    --muted-foreground: 0 0% 65%;
+
+    --accent: 21 100% 56%;
+    --accent-foreground: 0 0% 7%;
+
+    --border: 0 0% 18%;
+    --input: 0 0% 18%;
+    --ring: 21 100% 56%;
+
+    --gradient-primary: linear-gradient(135deg, hsl(21 100% 54%), hsl(24 100% 62%));
+    --gradient-hero: linear-gradient(135deg, hsl(21 100% 54%) 0%, hsl(0 0% 6%) 100%);
+    --gradient-subtle: linear-gradient(180deg, hsl(0 0% 6%) 0%, hsl(0 0% 9%) 100%);
+    --shadow-elegant: 0 10px 30px -10px hsl(21 100% 54% / 0.45);
+
+    --sidebar-background: 0 0% 4%;
+    --sidebar-foreground: 0 0% 92%;
+    --sidebar-primary: 21 100% 56%;
+    --sidebar-primary-foreground: 0 0% 7%;
+    --sidebar-accent: 0 0% 11%;
+    --sidebar-accent-foreground: 21 100% 60%;
+    --sidebar-border: 0 0% 14%;
+    --sidebar-ring: 21 100% 56%;
+  }
+
+  /* ============ Oister — Light ============ */
+  .theme-oister.light {
+    --background: 280 40% 98%;
+    --foreground: 270 50% 12%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 270 50% 12%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 270 50% 12%;
+
+    --primary: 268 53% 37%;
+    --primary-foreground: 0 0% 100%;
+    --primary-glow: 268 60% 55%;
+
+    --secondary: 280 35% 93%;
+    --secondary-foreground: 270 50% 12%;
+
+    --muted: 280 30% 95%;
+    --muted-foreground: 270 15% 40%;
+
+    --accent: 46 100% 50%;
+    --accent-foreground: 270 50% 12%;
+
+    --success: 92 50% 45%;
+    --success-foreground: 0 0% 100%;
+
+    --border: 280 25% 88%;
+    --input: 280 25% 88%;
+    --ring: 268 53% 37%;
+
+    --gradient-primary: linear-gradient(135deg, hsl(268 53% 37%), hsl(268 60% 55%));
+    --gradient-hero: linear-gradient(135deg, hsl(268 53% 37%) 0%, hsl(46 100% 50%) 100%);
+    --gradient-subtle: linear-gradient(180deg, hsl(280 40% 98%) 0%, hsl(280 35% 93%) 100%);
+    --shadow-elegant: 0 10px 30px -10px hsl(268 53% 37% / 0.35);
+
+    --sidebar-background: 268 53% 28%;
+    --sidebar-foreground: 280 30% 95%;
+    --sidebar-primary: 46 100% 50%;
+    --sidebar-primary-foreground: 270 50% 12%;
+    --sidebar-accent: 268 50% 35%;
+    --sidebar-accent-foreground: 46 100% 60%;
+    --sidebar-border: 268 45% 38%;
+    --sidebar-ring: 46 100% 50%;
+  }
+
+  /* ============ Oister — Dark ============ */
+  .theme-oister.dark {
+    --background: 268 35% 9%;
+    --foreground: 280 25% 95%;
+
+    --card: 268 30% 13%;
+    --card-foreground: 280 25% 95%;
+
+    --popover: 268 30% 13%;
+    --popover-foreground: 280 25% 95%;
+
+    --primary: 268 65% 65%;
+    --primary-foreground: 268 50% 10%;
+    --primary-glow: 280 70% 72%;
+
+    --secondary: 268 25% 18%;
+    --secondary-foreground: 280 25% 95%;
+
+    --muted: 268 22% 16%;
+    --muted-foreground: 280 15% 65%;
+
+    --accent: 46 100% 55%;
+    --accent-foreground: 268 50% 10%;
+
+    --success: 92 55% 55%;
+    --success-foreground: 0 0% 100%;
+
+    --border: 268 25% 22%;
+    --input: 268 25% 22%;
+    --ring: 268 65% 65%;
+
+    --gradient-primary: linear-gradient(135deg, hsl(268 65% 55%), hsl(280 70% 65%));
+    --gradient-hero: linear-gradient(135deg, hsl(268 65% 45%) 0%, hsl(46 100% 50%) 100%);
+    --gradient-subtle: linear-gradient(180deg, hsl(268 35% 9%) 0%, hsl(268 30% 13%) 100%);
+    --shadow-elegant: 0 10px 30px -10px hsl(268 65% 55% / 0.45);
+
+    --sidebar-background: 268 40% 7%;
+    --sidebar-foreground: 280 25% 95%;
+    --sidebar-primary: 46 100% 55%;
+    --sidebar-primary-foreground: 268 50% 10%;
+    --sidebar-accent: 268 30% 16%;
+    --sidebar-accent-foreground: 46 100% 60%;
+    --sidebar-border: 268 25% 20%;
+    --sidebar-ring: 46 100% 55%;
   }
 }
 
