@@ -1,66 +1,56 @@
 ## Mål
-Forenkle navigationen til ét hovedside (Procesbibliotek), fjerne Dashboard, og lægge favoritter, stats, view-toggle og en hurtig "Upload proces"-dialog ind på Library. AI-kvalitetstjek flyttes til ProcessDetail som en valgfri knap.
+
+Gør appen mere farverig og giv brugeren mulighed for at vælge mellem to brand-temaer (**3** og **Oister**) samt lys/mørk visning. Standard: lyst "3"-tema (orange/sort).
+
+## Brand-paletter
+
+**3 (3.dk)** – kraftig orange + sort/hvid
+- Primary: orange `#FF6A13`
+- Foreground/CTA-knap mørk: `#0A0A0A`
+- Accent: dyb sort
+
+**Oister (oister.dk)** – lilla + gul/grøn
+- Primary: lilla `#5C2D91`
+- Accent: gul `#FFC400`
+- Success/CTA: grøn `#7AC143`
+
+Hvert brand får både en **light** og **dark** variant (totalt 4 themes: `3-light`, `3-dark`, `oister-light`, `oister-dark`).
 
 ## Ændringer
 
-### 1. Navigation (`src/components/layout/AppSidebar.tsx`)
-- Fjern Dashboard og Upload & Forbedr fra `items`.
-- Behold Procesbibliotek (`/library`) og Vidensbank (`/knowledge`).
-- Behold admin-sektion (Brugere & adgang).
+### 1. `src/index.css`
+- Behold semantiske tokens, men flyt brand-specifikke værdier til klasse-scopede blokke:
+  - `:root, .theme-3.light` → 3 light (default)
+  - `.theme-3.dark` → 3 dark
+  - `.theme-oister.light` → Oister light
+  - `.theme-oister.dark` → Oister dark
+- Opdater alle eksisterende tokens (`--primary`, `--accent`, `--success`, `--warning`, `--gradient-primary`, `--gradient-hero`, `--shadow-elegant`, sidebar-tokens) pr. theme i HSL.
+- Tilføj farverig gradient-baggrund pr. theme så UI'et føles mere levende (bruges i `bg-gradient-subtle` og `bg-gradient-hero`).
 
-### 2. Routing (`src/App.tsx`)
-- Fjern import af `Index`.
-- Sæt `/` til at vise Library (redirect eller direkte render).
-- Behold `/upload`-route som peger på `UploadImprove` (stadig tilgængelig direkte).
-- Behold `/process/:id`, `/knowledge`, `/admin`.
+### 2. Ny `src/lib/theme.tsx` (ThemeProvider)
+- Context med `{ brand: "3" | "oister", mode: "light" | "dark", setBrand, setMode, toggleMode }`.
+- Persist i `localStorage` (key `pb_theme`) – default `{ brand: "3", mode: "light" }`.
+- Sætter to klasser på `<html>`: `theme-3|theme-oister` og `light|dark`.
 
-### 3. Slet filer
-- `src/pages/Dashboard.tsx`
-- `src/pages/Index.tsx` (eller ret til at re-eksportere Library)
+### 3. `src/App.tsx`
+- Wrap app-tree i `<ThemeProvider>` (yderst).
 
-### 4. `src/pages/Library.tsx` (hovedrefaktor)
-Tilføj øverst:
-- **Stats-bar** med 4 kort (genbrug `DashboardStats`-mønster, men kald direkte i Library): totalt antal, gns. quality_score, kræver opmærksomhed (status `In Review` eller `quality_score < 50`), publicerede.
-- **View-toggle (grid/list)** øverst til højre ved siden af ny "Upload proces"-knap.
-- **"Upload proces"-knap** der åbner en ny dialog-komponent.
+### 4. `src/components/layout/AppLayout.tsx` – header
+- Tilføj to nye kontroller i højre side, før badge:
+  - **Brand-select** (lille Select / ToggleGroup): "3" | "Oister"
+  - **Mode-toggle** (icon Button): Sun/Moon ikon, skifter light/dark
+- Brug `useTheme()` hook.
 
-Favoritter:
-- localStorage-nøgle `library_favs` (string[] af process-ids).
-- Lille stjerne-ikon på hvert kort/række (Lucide `Star`) der toggler favorit.
-- Sortering: favoritter først, derefter eksisterende rækkefølge (updated_at desc).
+### 5. Auth-side
+- Ingen specielle ændringer; theme gælder også her, da `<html>`-klasser sættes globalt.
 
-List-visning:
-- Når `view === "list"`: render som kompakt tabel/rækker i stedet for kort-grid (titel, afdeling, status, owner, kvalitet, stjerne, slet-knap).
+## Tekniske detaljer
 
-Behold:
-- Søgning, afdelings-filter, status-filter.
-- Soft delete / restore / permanent delete-logik.
-- Papirkurv-toggle.
+- Alle farver konverteres til HSL og lægges som CSS variables – ingen hex direkte i komponenter.
+- `tailwind.config.ts` rører vi ikke; eksisterende `hsl(var(--token))`-mapping virker uændret.
+- Sidebar bruger allerede `--sidebar-*` tokens, så de opdateres pr. theme for at matche brand.
+- `toaster` (sonner) bruger `next-themes`-style theme prop; vi tilføjer ikke `next-themes` – `useTheme()` hook eksponerer `mode` til Sonner via en lille wrapper-update i `sonner.tsx` (læser fra vores context i stedet for `next-themes`).
 
-### 5. Ny komponent `src/components/library/QuickUploadDialog.tsx`
-Dialog med:
-- Titel-input.
-- Afdeling-select (admin ser alle, andre låst til egen afdeling — som i `UploadImprove`).
-- Fil-upload (`.docx` eller `.txt`) ELLER textarea til indsat tekst.
-- `.docx` parses lokalt med `mammoth` → markdown (samme `htmlToMarkdown`-helper).
-- Knap "Gem som kladde": indsætter row i `processes` (status `Draft`, `quality_score: scoreQuality(content)`), opretter første `process_versions`-row (`ai_generated: false`), navigerer til `/process/:id`.
-- Ingen AI-kald.
-
-### 6. `src/pages/ProcessDetail.tsx`
-- Tilføj knap "Kør AI-kvalitetstjek" (kun synlig hvis `editable`) i action-row.
-- Klik kalder `supabase.functions.invoke("claude-parse", { body: { kind: "improve", documentMarkdown: content, rules, title } })` med samme rules-load som i `UploadImprove.improveWithClaude`.
-- Vis resultat i en ny sektion (markdown preview) med knapper:
-  - "Erstat indhold med forslag" → sætter `content` og åbner editor.
-  - "Forkast".
-- Loading-state med `Loader2`.
-
-## Tekniske noter
-- `Process`-typen i `src/lib/types.ts` bruges allerede; sørg for at Library mapper `quality_score` → `qualityScore` hvis stats-komponenten genbruges, ellers regn direkte på row-felter.
-- `dashboard_preferences`-tabellen bruges ikke længere — kan blive stående (ingen migration nødvendig).
-- Slet ubrugte komponenter `src/components/dashboard/*` efter refaktor (DashboardStats kan flyttes til `src/components/library/LibraryStats.tsx`, resten slettes).
-- `Index.tsx` route: nemmest at lade `/` rendere `<Library />` direkte i `App.tsx` og slette `Index.tsx`.
-
-## Filer der ændres/oprettes/slettes
-- ændret: `src/App.tsx`, `src/components/layout/AppSidebar.tsx`, `src/pages/Library.tsx`, `src/pages/ProcessDetail.tsx`
-- oprettet: `src/components/library/QuickUploadDialog.tsx`, `src/components/library/LibraryStats.tsx`
-- slettet: `src/pages/Dashboard.tsx`, `src/pages/Index.tsx`, `src/components/dashboard/*` (Dashboard*, AddProcessSheet, AISearchDialog, ProcessDetailSheet, ProcessWidget, ProcessListRow — verificeres at intet andet bruger dem)
+## Ud af scope
+- Ingen ændringer til business-logic, edge functions, DB.
+- Pages selv refaktoreres ikke – de arver de nye tokens automatisk.
