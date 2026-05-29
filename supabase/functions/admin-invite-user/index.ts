@@ -34,23 +34,31 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { email, full_name, role, department_id } = await req.json();
-    if (!email || !full_name) {
-      return new Response(JSON.stringify({ error: "Missing email or full_name" }), {
+    const { email, full_name, role, department_id, password } = await req.json();
+    if (!email || !full_name || !password) {
+      return new Response(JSON.stringify({ error: "Missing email, full_name or password" }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    if (typeof password !== "string" || password.length < 8) {
+      return new Response(JSON.stringify({ error: "Password skal være mindst 8 tegn" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const { data: invited, error: inviteErr } = await admin.auth.admin.inviteUserByEmail(email, {
-      data: { full_name },
+    const { data: created, error: createErr } = await admin.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+      user_metadata: { full_name },
     });
-    if (inviteErr || !invited.user) {
-      return new Response(JSON.stringify({ error: inviteErr?.message ?? "Invite failed" }), {
+    if (createErr || !created.user) {
+      return new Response(JSON.stringify({ error: createErr?.message ?? "Create failed" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const uid = invited.user.id;
+    const uid = created.user.id;
     if (department_id) {
       await admin.from("profiles").update({ department_id, full_name }).eq("id", uid);
     } else {
