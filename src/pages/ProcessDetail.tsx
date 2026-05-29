@@ -6,7 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { StatusBadge } from "@/components/StatusBadge";
 import { QualityMeter } from "@/components/QualityMeter";
-import { ArrowLeft, Lock, Save, History, Copy, FileText, Pencil, Eye, X } from "lucide-react";
+import { ArrowLeft, Lock, Save, History, Copy, FileText, Pencil, Eye, X, Wand2, Loader2 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useState, useEffect, useRef } from "react";
 import { Status, STATUSES } from "@/lib/types";
@@ -44,6 +44,8 @@ export default function ProcessDetail() {
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const contentRef = useRef<HTMLDivElement | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiSuggestion, setAiSuggestion] = useState<string>("");
 
   const load = async () => {
     if (!id) return;
@@ -109,6 +111,51 @@ export default function ProcessDetail() {
   const cancelEdit = () => {
     setContent(process?.content ?? "");
     setIsEditing(false);
+  };
+
+  const runAiCheck = async () => {
+    if (!content.trim()) { toast.error("Intet indhold at tjekke"); return; }
+    setAiLoading(true);
+    setAiSuggestion("");
+    try {
+      const { data: rules } = await supabase
+        .from("knowledge_items")
+        .select("title, type, content, extracted_text")
+        .eq("active", true).eq("use_in_ai", true);
+      const rulesText = (rules ?? []).map((r: any) => {
+        const extra = r.extracted_text ? `\n${r.extracted_text}` : "";
+        return `### ${r.title} (${r.type})\n${r.content ?? ""}${extra}`;
+      }).join("\n\n---\n\n");
+
+      const { data, error } = await supabase.functions.invoke("claude-parse", {
+        body: { kind: "improve", documentMarkdown: content, rules: rulesText, title: process.title },
+      });
+      if (error) {
+        let msg = error.message ?? "ukendt fejl";
+        try {
+          const ctx: any = (error as any).context;
+          if (ctx && typeof ctx.json === "function") {
+            const j = await ctx.json();
+            if (j?.error) msg = typeof j.error === "string" ? j.error : JSON.stringify(j.error);
+          }
+        } catch { /* ignore */ }
+        throw new Error(msg);
+      }
+      if ((data as any)?.error) throw new Error((data as any).error);
+      setAiSuggestion((data as any)?.markdown ?? "");
+      toast.success("AI-forslag klar");
+    } catch (e: any) {
+      toast.error("AI-tjek fejlede: " + (e?.message ?? ""));
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  const applySuggestion = () => {
+    setContent(aiSuggestion);
+    setIsEditing(true);
+    setAiSuggestion("");
+    toast.success("Forslag indsat — husk at gemme");
   };
 
   return (
@@ -181,9 +228,15 @@ export default function ProcessDetail() {
                       <FileText className="mr-2 h-3 w-3" />Kopier som tekst
                     </Button>
                     {editable && (
-                      <Button size="sm" onClick={() => setIsEditing(true)}>
-                        <Pencil className="mr-2 h-3 w-3" />Rediger
-                      </Button>
+                      <>
+                        <Button size="sm" variant="outline" onClick={runAiCheck} disabled={aiLoading}>
+                          {aiLoading ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : <Wand2 className="mr-2 h-3 w-3" />}
+                          Kør AI-kvalitetstjek
+                        </Button>
+                        <Button size="sm" onClick={() => setIsEditing(true)}>
+                          <Pencil className="mr-2 h-3 w-3" />Rediger
+                        </Button>
+                      </>
                     )}
                   </>
                 )}
@@ -203,6 +256,23 @@ export default function ProcessDetail() {
               </div>
             </div>
           </CardContent></Card>
+
+          {aiSuggestion && (
+            <Card className="shadow-card border-accent/40"><CardContent className="pt-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="font-semibold text-sm flex items-center gap-2">
+                  <Wand2 className="h-4 w-4 text-accent" />AI-forslag
+                </h3>
+                <div className="flex gap-2">
+                  <Button size="sm" variant="ghost" onClick={() => setAiSuggestion("")}>Forkast</Button>
+                  <Button size="sm" onClick={applySuggestion}>Erstat indhold med forslag</Button>
+                </div>
+              </div>
+              <div className={proseClasses + " max-h-[500px] overflow-auto"}>
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>{aiSuggestion}</ReactMarkdown>
+              </div>
+            </CardContent></Card>
+          )}
         </TabsContent>
 
         <TabsContent value="versions">
