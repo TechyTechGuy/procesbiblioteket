@@ -462,6 +462,63 @@ export default function Admin() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* ---- Nulstil password dialog ---- */}
+      <Dialog open={!!pendingReset} onOpenChange={(o) => { if (!o) { setPendingReset(null); setResetPassword(""); setShowResetPw(false); } }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Nulstil adgangskode</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-2">
+            <p className="text-sm text-muted-foreground">
+              Sæt en ny adgangskode for <strong>{pendingReset?.full_name}</strong> ({pendingReset?.email}). Del den med brugeren — de kan selv ændre den under "Min konto".
+            </p>
+            <div className="grid gap-1.5">
+              <Label htmlFor="reset-pw">Ny adgangskode (min. 8 tegn)</Label>
+              <div className="flex gap-1">
+                <div className="relative flex-1">
+                  <Input
+                    id="reset-pw"
+                    type={showResetPw ? "text" : "password"}
+                    value={resetPassword}
+                    onChange={(e) => setResetPassword(e.target.value)}
+                    autoComplete="new-password"
+                  />
+                  <button type="button" onClick={() => setShowResetPw((v) => !v)}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    aria-label={showResetPw ? "Skjul" : "Vis"}>
+                    {showResetPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+                <Button type="button" variant="outline" size="icon" title="Generér password"
+                  onClick={() => {
+                    const bytes = new Uint8Array(12);
+                    crypto.getRandomValues(bytes);
+                    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$%";
+                    const pw = Array.from(bytes).map(b => chars[b % chars.length]).join("");
+                    setResetPassword(pw); setShowResetPw(true);
+                  }}>
+                  <Wand2 className="h-4 w-4" />
+                </Button>
+                <Button type="button" variant="outline" size="icon" title="Kopiér"
+                  disabled={!resetPassword}
+                  onClick={() => {
+                    navigator.clipboard.writeText(resetPassword);
+                    toast.success("Password kopieret");
+                  }}>
+                  <Copy className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPendingReset(null)} disabled={resetting}>Annuller</Button>
+            <Button onClick={handleResetPassword} disabled={resetting || resetPassword.length < 8}>
+              {resetting ? "Nulstiller..." : "Nulstil password"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
