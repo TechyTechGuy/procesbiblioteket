@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from "@/components/ui/alert-dialog";
 import { useAuth } from "@/lib/auth";
 import { Role, ROLES, ROLE_LABEL } from "@/lib/types";
-import { Plus, Trash2, ShieldCheck, Lock, RotateCcw, Eye, EyeOff, Wand2, Copy } from "lucide-react";
+import { Plus, Trash2, ShieldCheck, Lock, RotateCcw, Eye, EyeOff, Wand2, Copy, KeyRound } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -40,6 +40,12 @@ export default function Admin() {
 
   // Delete dialog
   const [pendingDelete, setPendingDelete] = useState<UserRow | null>(null);
+
+  // Reset password dialog
+  const [pendingReset, setPendingReset] = useState<UserRow | null>(null);
+  const [resetPassword, setResetPassword] = useState("");
+  const [showResetPw, setShowResetPw] = useState(false);
+  const [resetting, setResetting] = useState(false);
 
   const loadUsers = async () => {
     const { data: profs } = await supabase.from("profiles").select("id, full_name, email, department_id, deleted_at");
@@ -170,6 +176,25 @@ export default function Admin() {
   };
 
   const isSoftDeleted = (u: UserRow) => !!u.deleted_at;
+
+  const handleResetPassword = async () => {
+    if (!pendingReset) return;
+    if (resetPassword.length < 8) { toast.error("Password skal være mindst 8 tegn"); return; }
+    setResetting(true);
+    const { data, error } = await supabase.functions.invoke("admin-reset-password", {
+      body: { user_id: pendingReset.id, password: resetPassword },
+    });
+    if (error || (data && (data as any).error)) {
+      toast.error(error?.message || (data as any)?.error || "Kunne ikke nulstille password");
+      setResetting(false);
+      return;
+    }
+    toast.success(`Password nulstillet for ${pendingReset.full_name}`);
+    setResetting(false);
+    setPendingReset(null);
+    setResetPassword("");
+    setShowResetPw(false);
+  };
 
   return (
     <div className="space-y-4 max-w-6xl">
