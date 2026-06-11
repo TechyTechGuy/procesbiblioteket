@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from "@/components/ui/alert-dialog";
 import { useAuth } from "@/lib/auth";
 import { Role, ROLES, ROLE_LABEL } from "@/lib/types";
-import { Plus, Trash2, ShieldCheck, Lock, RotateCcw, Eye, EyeOff, Wand2, Copy } from "lucide-react";
+import { Plus, Trash2, ShieldCheck, Lock, RotateCcw, Eye, EyeOff, Wand2, Copy, KeyRound } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -40,6 +40,12 @@ export default function Admin() {
 
   // Delete dialog
   const [pendingDelete, setPendingDelete] = useState<UserRow | null>(null);
+
+  // Reset password dialog
+  const [pendingReset, setPendingReset] = useState<UserRow | null>(null);
+  const [resetPassword, setResetPassword] = useState("");
+  const [showResetPw, setShowResetPw] = useState(false);
+  const [resetting, setResetting] = useState(false);
 
   const loadUsers = async () => {
     const { data: profs } = await supabase.from("profiles").select("id, full_name, email, department_id, deleted_at");
@@ -171,6 +177,25 @@ export default function Admin() {
 
   const isSoftDeleted = (u: UserRow) => !!u.deleted_at;
 
+  const handleResetPassword = async () => {
+    if (!pendingReset) return;
+    if (resetPassword.length < 8) { toast.error("Password skal være mindst 8 tegn"); return; }
+    setResetting(true);
+    const { data, error } = await supabase.functions.invoke("admin-reset-password", {
+      body: { user_id: pendingReset.id, password: resetPassword },
+    });
+    if (error || (data && (data as any).error)) {
+      toast.error(error?.message || (data as any)?.error || "Kunne ikke nulstille password");
+      setResetting(false);
+      return;
+    }
+    toast.success(`Password nulstillet for ${pendingReset.full_name}`);
+    setResetting(false);
+    setPendingReset(null);
+    setResetPassword("");
+    setShowResetPw(false);
+  };
+
   return (
     <div className="space-y-4 max-w-6xl">
       <div>
@@ -246,6 +271,17 @@ export default function Admin() {
                             title="Fortryd deaktivering"
                           >
                             <RotateCcw className="h-4 w-4" />
+                          </Button>
+                        )}
+                        {!isSoftDeleted(u) && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-muted-foreground hover:text-primary"
+                            onClick={() => { setPendingReset(u); setResetPassword(""); setShowResetPw(false); }}
+                            title="Nulstil adgangskode"
+                          >
+                            <KeyRound className="h-4 w-4" />
                           </Button>
                         )}
                         <Button
@@ -426,6 +462,63 @@ export default function Admin() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* ---- Nulstil password dialog ---- */}
+      <Dialog open={!!pendingReset} onOpenChange={(o) => { if (!o) { setPendingReset(null); setResetPassword(""); setShowResetPw(false); } }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Nulstil adgangskode</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-2">
+            <p className="text-sm text-muted-foreground">
+              Sæt en ny adgangskode for <strong>{pendingReset?.full_name}</strong> ({pendingReset?.email}). Del den med brugeren — de kan selv ændre den under "Min konto".
+            </p>
+            <div className="grid gap-1.5">
+              <Label htmlFor="reset-pw">Ny adgangskode (min. 8 tegn)</Label>
+              <div className="flex gap-1">
+                <div className="relative flex-1">
+                  <Input
+                    id="reset-pw"
+                    type={showResetPw ? "text" : "password"}
+                    value={resetPassword}
+                    onChange={(e) => setResetPassword(e.target.value)}
+                    autoComplete="new-password"
+                  />
+                  <button type="button" onClick={() => setShowResetPw((v) => !v)}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    aria-label={showResetPw ? "Skjul" : "Vis"}>
+                    {showResetPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+                <Button type="button" variant="outline" size="icon" title="Generér password"
+                  onClick={() => {
+                    const bytes = new Uint8Array(12);
+                    crypto.getRandomValues(bytes);
+                    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$%";
+                    const pw = Array.from(bytes).map(b => chars[b % chars.length]).join("");
+                    setResetPassword(pw); setShowResetPw(true);
+                  }}>
+                  <Wand2 className="h-4 w-4" />
+                </Button>
+                <Button type="button" variant="outline" size="icon" title="Kopiér"
+                  disabled={!resetPassword}
+                  onClick={() => {
+                    navigator.clipboard.writeText(resetPassword);
+                    toast.success("Password kopieret");
+                  }}>
+                  <Copy className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPendingReset(null)} disabled={resetting}>Annuller</Button>
+            <Button onClick={handleResetPassword} disabled={resetting || resetPassword.length < 8}>
+              {resetting ? "Nulstiller..." : "Nulstil password"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
