@@ -273,6 +273,17 @@ export default function Admin() {
                             <RotateCcw className="h-4 w-4" />
                           </Button>
                         )}
+                        {!isSoftDeleted(u) && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-muted-foreground hover:text-primary"
+                            onClick={() => { setPendingReset(u); setResetPassword(""); setShowResetPw(false); }}
+                            title="Nulstil adgangskode"
+                          >
+                            <KeyRound className="h-4 w-4" />
+                          </Button>
+                        )}
                         <Button
                           variant="ghost"
                           size="icon"
