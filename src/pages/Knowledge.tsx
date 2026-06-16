@@ -305,9 +305,9 @@ export default function Knowledge() {
         )}
       </div>
 
-     <div className="grid gap-3 md:grid-cols-2 items-start">
+      <div className="columns-1 md:columns-2 gap-3">
         {items.map((k) => (
-          <Card key={k.id} className="shadow-card">
+          <Card key={k.id} className="shadow-card break-inside-avoid mb-3">
             <CardHeader className="pb-2">
               <div className="flex items-start justify-between gap-2">
                 <CardTitle className="text-base flex items-center gap-2">
