@@ -305,7 +305,7 @@ export default function Knowledge() {
         )}
       </div>
 
-      <div className="grid gap-3 md:grid-cols-2">
+     <div className="grid gap-3 md:grid-cols-2 items-start">
         {items.map((k) => (
           <Card key={k.id} className="shadow-card">
             <CardHeader className="pb-2">
