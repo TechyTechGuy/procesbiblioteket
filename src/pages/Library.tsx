@@ -168,6 +168,11 @@ export default function Library() {
               <Upload className="mr-2 h-4 w-4" />Upload proces
             </Button>
           )}
+          {canEdit && (
+            <Button variant="outline" onClick={() => setVoiceOpen(true)}>
+              <Mic className="mr-2 h-4 w-4" />Indtal proces
+            </Button>
+          )}
           <div className="inline-flex rounded-md border bg-background">
             <Button variant={view === "grid" ? "secondary" : "ghost"} size="icon"
               onClick={() => setView("grid")} aria-label="Grid">
