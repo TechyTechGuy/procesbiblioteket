@@ -56,6 +56,8 @@ export default function Library() {
   const [hardDeleteId, setHardDeleteId] = useState<string | null>(null);
   const [view, setView] = useState<"grid" | "list">("grid");
   const [uploadOpen, setUploadOpen] = useState(false);
+  const [voiceOpen, setVoiceOpen] = useState(false);
+  const [voiceDraft, setVoiceDraft] = useState<{ title?: string; departmentId?: string; content?: string } | null>(null);
   const { favIds, orderIds, toggleFav, setOrder } = useUserPrefs();
 
   const toggleFavClick = (e: React.MouseEvent, id: string) => {
