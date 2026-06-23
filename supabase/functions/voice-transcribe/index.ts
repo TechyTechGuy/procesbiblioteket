@@ -42,7 +42,8 @@ Deno.serve(async (req) => {
 
     const upstream = new FormData();
     upstream.append("file", audio, `recording.${ext}`);
-    upstream.append("model", "openai/gpt-4o-mini-transcribe");
+    upstream.append("model", "openai/gpt-4o-transcribe");
+    upstream.append("language", "da");
 
     const resp = await fetch("https://ai.gateway.lovable.dev/v1/audio/transcriptions", {
       method: "POST",
