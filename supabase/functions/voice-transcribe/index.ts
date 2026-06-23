@@ -17,6 +17,11 @@ Deno.serve(async (req) => {
 
     const inForm = await req.formData();
     const audio = inForm.get("audio");
+    console.log("voice-transcribe: received", {
+      hasAudio: !!audio,
+      type: (audio as any)?.type,
+      size: (audio as any)?.size,
+    });
     if (!(audio instanceof File) && !(audio instanceof Blob)) {
       return new Response(JSON.stringify({ error: "Manglende audio-fil" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -47,6 +52,7 @@ Deno.serve(async (req) => {
     });
 
     const txt = await resp.text();
+    console.log("voice-transcribe: elevenlabs response", { status: resp.status, body: txt.slice(0, 500) });
     if (!resp.ok) {
       return new Response(JSON.stringify({ error: `Transskription fejlede (${resp.status}): ${txt}` }), {
         status: resp.status, headers: { ...corsHeaders, "Content-Type": "application/json" },
