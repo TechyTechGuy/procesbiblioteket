@@ -1,30 +1,8 @@
-## Problem
+Fejlen er bekræftet: transskriptionsfunktionen kalder ElevenLabs med `ELEVENLABS_API_KEY`, og ElevenLabs svarer `401 invalid_api_key`. I stedet for at jagte en ny ElevenLabs-nøgle retter vi transskriptionen til den indbyggede Lovable AI speech-to-text, som allerede har `LOVABLE_API_KEY` i projektet.
 
-Dialogen viser kun den generiske besked "Edge Function returned a non-2xx status code". Det er fordi `supabase.functions.invoke()` smider en `FunctionsHttpError` hvor `error.message` er hardcoded — JSON-body'en med den rigtige fejl fra ElevenLabs bliver smidt væk. Derfor kan vi ikke se hvad der reelt fejler (sandsynligvis ugyldigt `model_id`, ugyldig `language_code`, eller en API-key issue).
-
-## Plan
-
-**1. Få den rigtige fejl frem i klienten** (`VoiceProcessDialog.tsx`)
-Læs response-body'en når invoke fejler:
-```ts
-if (error) {
-  let msg = error.message;
-  if ((error as any).context?.json) {
-    const body = await (error as any).context.json().catch(() => null);
-    if (body?.error) msg = body.error;
-  }
-  throw new Error(msg);
-}
-```
-Gør det samme for `voice-structure-process`.
-
-**2. Tilføj logging i `voice-transcribe`**
-`console.log` af blob-størrelse, mime/ext, og fuldt ElevenLabs-svar (status + body) før vi returnerer. Så kan vi se det i edge-logs hvis det fejler igen.
-
-**3. Tjek ElevenLabs-parametre**
-Den nuværende kode bruger `model_id: "scribe_v2"` og `language_code: "dan"`. Hvis ElevenLabs returnerer "model not found" eller lignende, retter vi til den korrekte værdi (formentlig `scribe_v1`) — men det bekræfter vi først fra den nye fejlbesked, så vi ikke gætter.
-
-**4. Verificér i preview**
-Optag igen, læs den rigtige fejl, og deploy den endelige rettelse.
-
-Ingen ændringer til UI, Library-side, eller struktureringsfunktionen ud over fejl-parsing.
+Plan:
+1. Opdatér `voice-transcribe` backend-funktionen til at bruge Lovable AI Gateway endpointet `/v1/audio/transcriptions` med modellen `openai/gpt-4o-mini-transcribe`.
+2. Bevar de eksisterende klientkald og UI uændret, så dialogen stadig uploader samme audio og modtager `{ text }` tilbage.
+3. Send audio som `multipart/form-data`, match filendelsen til MIME-typen, og undlad manuelt `Content-Type`, så multipart-boundary bliver korrekt.
+4. Bevar validering for manglende/tom audio og forbedr fejlbeskeden, så eventuelle gateway/provider-fejl vises tydeligt.
+5. Fjerne afhængigheden af `ELEVENLABS_API_KEY` fra transskription, så 401-fejlen ikke længere blokerer optagelser.

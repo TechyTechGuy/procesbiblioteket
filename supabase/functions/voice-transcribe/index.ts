@@ -8,9 +8,9 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
-    const apiKey = Deno.env.get("ELEVENLABS_API_KEY");
+    const apiKey = Deno.env.get("LOVABLE_API_KEY");
     if (!apiKey) {
-      return new Response(JSON.stringify({ error: "ELEVENLABS_API_KEY mangler" }), {
+      return new Response(JSON.stringify({ error: "LOVABLE_API_KEY mangler" }), {
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -42,17 +42,16 @@ Deno.serve(async (req) => {
 
     const upstream = new FormData();
     upstream.append("file", audio, `recording.${ext}`);
-    upstream.append("model_id", "scribe_v2");
-    upstream.append("language_code", "dan");
+    upstream.append("model", "openai/gpt-4o-mini-transcribe");
 
-    const resp = await fetch("https://api.elevenlabs.io/v1/speech-to-text", {
+    const resp = await fetch("https://ai.gateway.lovable.dev/v1/audio/transcriptions", {
       method: "POST",
-      headers: { "xi-api-key": apiKey },
+      headers: { Authorization: `Bearer ${apiKey}` },
       body: upstream,
     });
 
     const txt = await resp.text();
-    console.log("voice-transcribe: elevenlabs response", { status: resp.status, body: txt.slice(0, 500) });
+    console.log("voice-transcribe: gateway response", { status: resp.status, body: txt.slice(0, 500) });
     if (!resp.ok) {
       return new Response(JSON.stringify({ error: `Transskription fejlede (${resp.status}): ${txt}` }), {
         status: resp.status, headers: { ...corsHeaders, "Content-Type": "application/json" },
