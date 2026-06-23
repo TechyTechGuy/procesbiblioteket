@@ -16,7 +16,8 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { PartyButton } from "@/components/PartyButton";
+import { PartyOverlay } from "@/components/PartyOverlay";
+import { PartyPopper } from "lucide-react";
 
 const proseClasses =
   "prose max-w-none dark:prose-invert leading-relaxed rounded-md border bg-background p-4 " +
@@ -57,6 +58,7 @@ export default function ProcessDetail() {
   const contentRef = useRef<HTMLDivElement | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiSuggestion, setAiSuggestion] = useState<string>("");
+  const [partyOpen, setPartyOpen] = useState(false);
 
   const load = async () => {
     if (!id) return;
@@ -255,7 +257,9 @@ export default function ProcessDetail() {
                     <Button size="sm" variant="outline" onClick={copyAsText}>
                       <FileText className="mr-2 h-3 w-3" />Kopier som tekst
                     </Button>
-                    <PartyButton />
+                    <Button size="sm" variant="outline" onClick={() => setPartyOpen(true)}>
+                      <PartyPopper className="mr-2 h-3 w-3" />Fest!
+                    </Button>
                     {editable && (
                       <>
                         <Button size="sm" variant="outline" onClick={runAiCheck} disabled={aiLoading}>
@@ -354,6 +358,7 @@ export default function ProcessDetail() {
           </CardContent></Card>
         </TabsContent>
       </Tabs>
+      <PartyOverlay open={partyOpen} onClose={() => setPartyOpen(false)} />
     </div>
   );
 }
