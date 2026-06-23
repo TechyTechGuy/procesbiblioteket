@@ -16,6 +16,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { PartyButton } from "@/components/PartyButton";
 
 const proseClasses =
   "prose max-w-none dark:prose-invert leading-relaxed rounded-md border bg-background p-4 " +
@@ -254,6 +255,7 @@ export default function ProcessDetail() {
                     <Button size="sm" variant="outline" onClick={copyAsText}>
                       <FileText className="mr-2 h-3 w-3" />Kopier som tekst
                     </Button>
+                    <PartyButton />
                     {editable && (
                       <>
                         <Button size="sm" variant="outline" onClick={runAiCheck} disabled={aiLoading}>
