@@ -18,11 +18,15 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
 const proseClasses =
-  "prose prose-sm max-w-none dark:prose-invert rounded-md border bg-background p-4 " +
-  "[&_table]:w-full [&_table]:border-collapse [&_table]:my-2 " +
-  "[&_th]:border [&_th]:border-border [&_th]:bg-muted [&_th]:px-2 [&_th]:py-1 [&_th]:text-left " +
-  "[&_td]:border [&_td]:border-border [&_td]:px-2 [&_td]:py-1 " +
-  "[&_h1]:text-base [&_h2]:text-sm [&_h3]:text-sm [&_h1]:font-bold [&_h2]:font-semibold [&_h3]:font-semibold " +
+  "prose max-w-none dark:prose-invert leading-relaxed rounded-md border bg-background p-4 " +
+  "[&_h1]:text-2xl [&_h1]:font-bold [&_h1]:mt-6 [&_h1]:mb-3 " +
+  "[&_h2]:text-xl [&_h2]:font-semibold [&_h2]:mt-5 [&_h2]:mb-2 " +
+  "[&_h3]:text-lg [&_h3]:font-semibold [&_h3]:mt-4 [&_h3]:mb-2 " +
+  "[&_p]:leading-relaxed " +
+  "[&_table]:w-full [&_table]:border-collapse [&_table]:my-3 " +
+  "[&_th]:border [&_th]:border-border [&_th]:bg-muted [&_th]:px-3 [&_th]:py-2 [&_th]:text-left " +
+  "[&_td]:border [&_td]:border-border [&_td]:px-3 [&_td]:py-2 " +
+  "[&_tbody_tr:nth-child(even)]:bg-muted/30 " +
   "[&_pre]:bg-muted [&_pre]:p-2 [&_pre]:rounded";
 
 interface ProcessRow {
@@ -174,7 +178,7 @@ export default function ProcessDetail() {
   };
 
   return (
-    <div className="space-y-4 max-w-5xl">
+    <div className="space-y-4 max-w-7xl">
       <Button variant="ghost" size="sm" onClick={() => navigate("/library")}><ArrowLeft className="mr-2 h-4 w-4" />Tilbage til bibliotek</Button>
 
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
@@ -214,11 +218,11 @@ export default function ProcessDetail() {
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
                 rows={20}
-                className="font-mono text-xs"
+                className="text-sm leading-relaxed p-3"
                 disabled={!editable}
               />
             ) : (
-              <div ref={contentRef} className={proseClasses + " max-h-[600px] overflow-auto"}>
+              <div ref={contentRef} className={proseClasses}>
                 {content.trim() ? (
                   <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
                 ) : (
@@ -323,7 +327,7 @@ export default function ProcessDetail() {
                   <Button size="sm" onClick={applySuggestion}>Erstat indhold med forslag</Button>
                 </div>
               </div>
-              <div className={proseClasses + " max-h-[500px] overflow-auto"}>
+              <div className={proseClasses}>
                 <ReactMarkdown remarkPlugins={[remarkGfm]}>{aiSuggestion}</ReactMarkdown>
               </div>
             </CardContent></Card>
@@ -339,7 +343,7 @@ export default function ProcessDetail() {
                   <span className="text-xs text-muted-foreground">{new Date(v.created_at).toLocaleString("da-DK")}</span>
                 </div>
                 <p className="text-xs text-muted-foreground">{v.created_by_name} — {v.notes}</p>
-                <div className={proseClasses + " mt-2 max-h-[400px] overflow-auto"}>
+                <div className={proseClasses + " mt-2"}>
                   <ReactMarkdown remarkPlugins={[remarkGfm]}>{v.content}</ReactMarkdown>
                 </div>
               </div>
