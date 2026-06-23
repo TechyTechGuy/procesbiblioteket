@@ -262,7 +262,37 @@ export default function Library() {
         </SortableContext>
       </DndContext>
 
-      <QuickUploadDialog open={uploadOpen} onOpenChange={setUploadOpen} />
+      <QuickUploadDialog
+        open={uploadOpen}
+        onOpenChange={(o) => { setUploadOpen(o); if (!o) setVoiceDraft(null); }}
+        initial={voiceDraft}
+      />
+      <VoiceProcessDialog
+        open={voiceOpen}
+        onOpenChange={setVoiceOpen}
+        onUseAsDraft={(r) => {
+          const match = departments.find(
+            (d) => d.name.trim().toLowerCase() === (r.afdeling ?? "").trim().toLowerCase(),
+          );
+          const parts: string[] = [];
+          if (r.beskrivelse?.trim()) parts.push(r.beskrivelse.trim());
+          if (r.ansvarlig?.trim()) parts.push(`**Ansvarlig:** ${r.ansvarlig.trim()}`);
+          if (r.trin?.length) {
+            parts.push("## Trin");
+            parts.push(r.trin.map((t, i) => `${i + 1}. ${t}`).join("\n"));
+          }
+          setVoiceDraft({
+            title: r.procesnavn || "",
+            departmentId: match?.id,
+            content: parts.join("\n\n"),
+          });
+          setVoiceOpen(false);
+          setUploadOpen(true);
+          if (r.afdeling && !match) {
+            toast.info(`Afdeling "${r.afdeling}" matchede ingen — vælg manuelt.`);
+          }
+        }}
+      />
 
       <AlertDialog open={!!hardDeleteId} onOpenChange={(o) => !o && setHardDeleteId(null)}>
         <AlertDialogContent>
