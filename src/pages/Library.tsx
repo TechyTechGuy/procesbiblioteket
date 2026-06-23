@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from "@/lib/auth";
-import { Search, Trash2, RotateCcw, X, Star, LayoutGrid, List as ListIcon, Upload, GripVertical, Globe, Share2 } from "lucide-react";
+import { Search, Trash2, RotateCcw, X, Star, LayoutGrid, List as ListIcon, Upload, GripVertical, Globe, Share2, Mic } from "lucide-react";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Link } from "react-router-dom";
 import { QualityMeter } from "@/components/QualityMeter";
@@ -14,6 +14,7 @@ import { Status, STATUSES } from "@/lib/types";
 import { toast } from "sonner";
 import { LibraryStats } from "@/components/library/LibraryStats";
 import { QuickUploadDialog } from "@/components/library/QuickUploadDialog";
+import { VoiceProcessDialog, type VoiceProcessResult } from "@/components/library/VoiceProcessDialog";
 import { useUserPrefs } from "@/hooks/useUserPrefs";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
