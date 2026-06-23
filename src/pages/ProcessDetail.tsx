@@ -358,6 +358,7 @@ export default function ProcessDetail() {
           </CardContent></Card>
         </TabsContent>
       </Tabs>
+      <PartyOverlay open={partyOpen} onClose={() => setPartyOpen(false)} />
     </div>
   );
 }
