@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from "@/lib/auth";
-import { Search, Trash2, RotateCcw, X, Star, LayoutGrid, List as ListIcon, Upload, GripVertical, Globe, Share2 } from "lucide-react";
+import { Search, Trash2, RotateCcw, X, Star, LayoutGrid, List as ListIcon, Upload, GripVertical, Globe, Share2, Mic } from "lucide-react";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Link } from "react-router-dom";
 import { QualityMeter } from "@/components/QualityMeter";
@@ -14,6 +14,7 @@ import { Status, STATUSES } from "@/lib/types";
 import { toast } from "sonner";
 import { LibraryStats } from "@/components/library/LibraryStats";
 import { QuickUploadDialog } from "@/components/library/QuickUploadDialog";
+import { VoiceProcessDialog, type VoiceProcessResult } from "@/components/library/VoiceProcessDialog";
 import { useUserPrefs } from "@/hooks/useUserPrefs";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -55,6 +56,8 @@ export default function Library() {
   const [hardDeleteId, setHardDeleteId] = useState<string | null>(null);
   const [view, setView] = useState<"grid" | "list">("grid");
   const [uploadOpen, setUploadOpen] = useState(false);
+  const [voiceOpen, setVoiceOpen] = useState(false);
+  const [voiceDraft, setVoiceDraft] = useState<{ title?: string; departmentId?: string; content?: string } | null>(null);
   const { favIds, orderIds, toggleFav, setOrder } = useUserPrefs();
 
   const toggleFavClick = (e: React.MouseEvent, id: string) => {
@@ -165,6 +168,11 @@ export default function Library() {
               <Upload className="mr-2 h-4 w-4" />Upload proces
             </Button>
           )}
+          {canEdit && (
+            <Button variant="outline" onClick={() => setVoiceOpen(true)}>
+              <Mic className="mr-2 h-4 w-4" />Indtal proces
+            </Button>
+          )}
           <div className="inline-flex rounded-md border bg-background">
             <Button variant={view === "grid" ? "secondary" : "ghost"} size="icon"
               onClick={() => setView("grid")} aria-label="Grid">
@@ -254,7 +262,37 @@ export default function Library() {
         </SortableContext>
       </DndContext>
 
-      <QuickUploadDialog open={uploadOpen} onOpenChange={setUploadOpen} />
+      <QuickUploadDialog
+        open={uploadOpen}
+        onOpenChange={(o) => { setUploadOpen(o); if (!o) setVoiceDraft(null); }}
+        initial={voiceDraft}
+      />
+      <VoiceProcessDialog
+        open={voiceOpen}
+        onOpenChange={setVoiceOpen}
+        onUseAsDraft={(r) => {
+          const match = departments.find(
+            (d) => d.name.trim().toLowerCase() === (r.afdeling ?? "").trim().toLowerCase(),
+          );
+          const parts: string[] = [];
+          if (r.beskrivelse?.trim()) parts.push(r.beskrivelse.trim());
+          if (r.ansvarlig?.trim()) parts.push(`**Ansvarlig:** ${r.ansvarlig.trim()}`);
+          if (r.trin?.length) {
+            parts.push("## Trin");
+            parts.push(r.trin.map((t, i) => `${i + 1}. ${t}`).join("\n"));
+          }
+          setVoiceDraft({
+            title: r.procesnavn || "",
+            departmentId: match?.id,
+            content: parts.join("\n\n"),
+          });
+          setVoiceOpen(false);
+          setUploadOpen(true);
+          if (r.afdeling && !match) {
+            toast.info(`Afdeling "${r.afdeling}" matchede ingen — vælg manuelt.`);
+          }
+        }}
+      />
 
       <AlertDialog open={!!hardDeleteId} onOpenChange={(o) => !o && setHardDeleteId(null)}>
         <AlertDialogContent>

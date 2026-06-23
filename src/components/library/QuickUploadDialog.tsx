@@ -20,6 +20,7 @@ import * as turndownGfm from "turndown-plugin-gfm";
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  initial?: { title?: string; departmentId?: string; content?: string } | null;
 }
 
 const htmlToMarkdown = (html: string) => {
@@ -28,7 +29,7 @@ const htmlToMarkdown = (html: string) => {
   return td.turndown(html);
 };
 
-export function QuickUploadDialog({ open, onOpenChange }: Props) {
+export function QuickUploadDialog({ open, onOpenChange, initial }: Props) {
   const { departments, profile, isAdmin, canEdit } = useAuth();
   const navigate = useNavigate();
   const [title, setTitle] = useState("");
@@ -42,6 +43,14 @@ export function QuickUploadDialog({ open, onOpenChange }: Props) {
   useEffect(() => {
     if (!departmentId && profile?.department_id) setDepartmentId(profile.department_id);
   }, [profile?.department_id, departmentId]);
+
+  // Prefill when dialog is opened with initial values (e.g. from voice input)
+  useEffect(() => {
+    if (!open || !initial) return;
+    if (initial.title) setTitle(initial.title);
+    if (initial.departmentId) setDepartmentId(initial.departmentId);
+    if (initial.content) setContent(initial.content);
+  }, [open, initial]);
 
   const handleFile = async (f: File) => {
     setFile(f);
