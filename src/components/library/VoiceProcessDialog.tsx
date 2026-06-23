@@ -108,7 +108,20 @@ export function VoiceProcessDialog({ open, onOpenChange, onUseAsDraft }: Props) 
       const form = new FormData();
       form.append("audio", blob, `recording.${blob.type.includes("mp4") ? "mp4" : "webm"}`);
       const { data, error } = await supabase.functions.invoke("voice-transcribe", { body: form });
-      if (error) throw new Error(error.message ?? "Transskription fejlede");
+      if (error) {
+        const ctx = (error as any).context;
+        let msg = error.message ?? "Transskription fejlede";
+        try {
+          if (ctx && typeof ctx.json === "function") {
+            const body = await ctx.json();
+            if (body?.error) msg = body.error;
+          } else if (ctx && typeof ctx.text === "function") {
+            const t = await ctx.text();
+            if (t) msg = t;
+          }
+        } catch { /* ignore */ }
+        throw new Error(msg);
+      }
       if ((data as any)?.error) throw new Error((data as any).error);
       const text = (data as any)?.text ?? "";
       setTranscript(text);
@@ -121,7 +134,20 @@ export function VoiceProcessDialog({ open, onOpenChange, onUseAsDraft }: Props) 
       const { data: sData, error: sErr } = await supabase.functions.invoke("voice-structure-process", {
         body: { transcript: text },
       });
-      if (sErr) throw new Error(sErr.message ?? "Strukturering fejlede");
+      if (sErr) {
+        const ctx = (sErr as any).context;
+        let msg = sErr.message ?? "Strukturering fejlede";
+        try {
+          if (ctx && typeof ctx.json === "function") {
+            const body = await ctx.json();
+            if (body?.error) msg = body.error;
+          } else if (ctx && typeof ctx.text === "function") {
+            const t = await ctx.text();
+            if (t) msg = t;
+          }
+        } catch { /* ignore */ }
+        throw new Error(msg);
+      }
       if ((sData as any)?.error) throw new Error((sData as any).error);
       setResult(sData as VoiceProcessResult);
       setState("done");
