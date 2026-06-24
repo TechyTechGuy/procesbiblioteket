@@ -1,4 +1,4 @@
-import { Library, Users, BookOpen, KeyRound } from "lucide-react";
+import { Library, Users, BookOpen, KeyRound, Map } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import {
   Sidebar,
@@ -17,6 +17,7 @@ import { useAuth } from "@/lib/auth";
 const items = [
   { title: "Procesbibliotek", url: "/library", icon: Library },
   { title: "Vidensbank", url: "/knowledge", icon: BookOpen },
+  { title: "Roadmaps", url: "/roadmaps", icon: Map },
 ];
 const adminItems = [{ title: "Brugere & adgang", url: "/admin", icon: Users }];
 const accountItems = [{ title: "Min konto", url: "/account", icon: KeyRound }];
