@@ -198,6 +198,123 @@ All colors MUST be HSL.
     --sidebar-border: 268 25% 20%;
     --sidebar-ring: 46 100% 55%;
   }
+
+  /* ============ Skov — Light ============ */
+  .theme-skov.light {
+    --radius: 1rem;
+    --background: 40 38% 92%;
+    --foreground: 155 35% 12%;
+
+    --card: 42 50% 96%;
+    --card-foreground: 155 35% 12%;
+
+    --popover: 42 50% 96%;
+    --popover-foreground: 155 35% 12%;
+
+    --primary: 155 35% 27%;
+    --primary-foreground: 42 50% 96%;
+    --primary-glow: 130 25% 55%;
+
+    --secondary: 40 30% 86%;
+    --secondary-foreground: 155 35% 12%;
+
+    --muted: 40 28% 88%;
+    --muted-foreground: 155 15% 32%;
+
+    --accent: 130 18% 60%;
+    --accent-foreground: 155 35% 12%;
+
+    --success: 142 38% 38%;
+    --success-foreground: 42 50% 96%;
+    --warning: 32 70% 50%;
+    --warning-foreground: 42 50% 96%;
+    --destructive: 16 55% 56%;
+    --destructive-foreground: 42 50% 96%;
+
+    --border: 38 25% 80%;
+    --input: 38 25% 80%;
+    --ring: 155 35% 27%;
+
+    --gradient-primary: linear-gradient(135deg, hsl(155 35% 27%), hsl(130 30% 42%));
+    --gradient-hero: linear-gradient(180deg, hsl(40 38% 92%) 0%, hsl(40 30% 86%) 100%);
+    --gradient-subtle: linear-gradient(180deg, hsl(40 38% 92%) 0%, hsl(40 32% 88%) 100%);
+    --shadow-elegant: 0 14px 36px -18px hsl(155 35% 12% / 0.28);
+    --shadow-card: 0 2px 12px -4px hsl(155 35% 12% / 0.10);
+
+    --sidebar-background: 155 35% 12%;
+    --sidebar-foreground: 42 40% 92%;
+    --sidebar-primary: 130 30% 55%;
+    --sidebar-primary-foreground: 155 35% 12%;
+    --sidebar-accent: 155 30% 18%;
+    --sidebar-accent-foreground: 42 40% 92%;
+    --sidebar-border: 155 25% 20%;
+    --sidebar-ring: 130 30% 55%;
+  }
+
+  /* ============ Skov — Dark ============ */
+  .theme-skov.dark {
+    --radius: 1rem;
+    --background: 155 30% 8%;
+    --foreground: 40 30% 92%;
+
+    --card: 155 28% 11%;
+    --card-foreground: 40 30% 92%;
+
+    --popover: 155 28% 11%;
+    --popover-foreground: 40 30% 92%;
+
+    --primary: 130 30% 58%;
+    --primary-foreground: 155 35% 10%;
+    --primary-glow: 130 35% 68%;
+
+    --secondary: 155 22% 16%;
+    --secondary-foreground: 40 30% 92%;
+
+    --muted: 155 20% 14%;
+    --muted-foreground: 40 18% 70%;
+
+    --accent: 130 22% 42%;
+    --accent-foreground: 40 30% 92%;
+
+    --success: 142 38% 50%;
+    --success-foreground: 155 35% 10%;
+    --warning: 32 70% 60%;
+    --warning-foreground: 155 35% 10%;
+    --destructive: 16 55% 60%;
+    --destructive-foreground: 40 30% 92%;
+
+    --border: 155 20% 20%;
+    --input: 155 20% 20%;
+    --ring: 130 30% 58%;
+
+    --gradient-primary: linear-gradient(135deg, hsl(155 35% 30%), hsl(130 30% 45%));
+    --gradient-hero: linear-gradient(180deg, hsl(155 30% 8%) 0%, hsl(155 28% 11%) 100%);
+    --gradient-subtle: linear-gradient(180deg, hsl(155 30% 8%) 0%, hsl(155 28% 11%) 100%);
+    --shadow-elegant: 0 14px 36px -18px hsl(0 0% 0% / 0.55);
+    --shadow-card: 0 2px 12px -4px hsl(0 0% 0% / 0.45);
+
+    --sidebar-background: 155 35% 6%;
+    --sidebar-foreground: 40 30% 92%;
+    --sidebar-primary: 130 30% 58%;
+    --sidebar-primary-foreground: 155 35% 10%;
+    --sidebar-accent: 155 25% 13%;
+    --sidebar-accent-foreground: 40 30% 92%;
+    --sidebar-border: 155 22% 16%;
+    --sidebar-ring: 130 30% 58%;
+  }
+
+  /* Skov: serif display headings + softer, more generous primary buttons */
+  .theme-skov h1,
+  .theme-skov h2,
+  .theme-skov h3,
+  .theme-skov .font-display {
+    font-family: 'Fraunces', ui-serif, Georgia, serif;
+    font-weight: 500;
+    letter-spacing: -0.01em;
+  }
+  .theme-skov button[class*="bg-primary"]:not([class*="rounded-full"]) {
+    border-radius: 9999px;
+  }
 }
 
 @layer base {
