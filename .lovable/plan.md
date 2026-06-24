@@ -1,80 +1,30 @@
-# "Skov" som tredje brand-tema (tilvalg)
+## Diagnose
 
-Tilføj **Skov** som et tredje tema ved siden af "3" og "Oister" i den eksisterende brand-vælger. Brugeren skifter selv til det og kan altid skifte tilbage. Standard forbliver "3".
+Linket peger på den **publicerede** version (`procesbiblioteket.lovable.app`), ikke preview. Jeg har tjekket:
 
-## Brand-vælger
+- Processen findes i databasen (titel `01_onboarding`, 6.256 tegn indhold, status Draft) — data er fint.
+- `ProcessDetail.tsx`-koden i preview er korrekt: viser "Indlæser…", derefter indhold eller "Ingen adgang"-kort. Ingen åbenlys crash-sti.
+- Ingen runtime-errors i nuværende preview.
+- Vite-build kører uden fejl lige nu.
 
-I `src/lib/theme.tsx`:
-- Udvid `Brand`-typen til `"3" | "oister" | "skov"`.
-- Tilføj `theme-skov` til den klasse-liste der toggles på `<html>`.
-- Opdater `load()`'s validering så `skov` accepteres.
+Den hvide side på den publicerede URL skyldes derfor med stor sandsynlighed at **publiceringen er forældet** — den blev sidst publiceret før de seneste ændringer (forest-tema, dobbeltklik-til-rediger, Kvalitet-side, voice-roadmap), og den gamle bundle crasher når den støder på data eller routes der ikke matcher.
 
-I brand-knapperne i `AppLayout` (samme sted som "3"/"Oister" i dag):
-- Tilføj en tredje knap "Skov" med et lille træ/blad-ikon (lucide `Trees`).
+## Plan
 
-## Designsystem (kun aktivt når `theme-skov` er valgt)
+**1. Tilføj en global ErrorBoundary** så fremtidige crashes viser en venlig fejlbesked i stedet for en tom hvid side.
 
-I `src/index.css` tilføjes en ny scope:
+- Ny fil `src/components/ErrorBoundary.tsx`: klassisk React class-komponent med `componentDidCatch`, logger fejlen til konsollen og viser et kort med:
+  - "Noget gik galt på denne side"
+  - Fejlmeddelelse (sammenklappelig)
+  - Knapper: "Prøv igen" (reset state) og "Tilbage til biblioteket"
+- Wrap `<Routes>` (eller hele `AppLayout`-children) i `src/App.tsx` med `<ErrorBoundary>` så alle ruter er dækket, men sidebar/header forbliver synlige.
 
-```css
-.theme-skov { … light tokens … }
-.theme-skov.dark { … dark tokens … }
-```
+**2. Republicér appen** så den nyeste kode kommer ud på `procesbiblioteket.lovable.app`. Når den nye bundle er ude, vil `/process/:id` virke igen — og hvis der mod forventning stadig er en fejl, vil ErrorBoundary nu vise hvad der går galt i stedet for en hvid side.
 
-**Palet** (HSL)
-- Forest deep `#0E2A22` — header/sidebar baggrund, tekst på sand
-- Forest primary `#2E5D4B` — primary, accent
-- Sage `#8FA98A` — secondary/muted accents
-- Sand `#F3ECDD` — `--background`
-- Cream `#FBF7EE` — `--card`
-- Birch bark `#E6DECC` — `--border`
-- Warm clay `#C97B5A` — `--destructive`
+## Teknisk
 
-**Form**
-- `--radius: 1rem` (kun i skov-temaet)
-- Bløde, dybe skygger (`--shadow-soft`)
-- Primær-knap får pille-form i skov-temaet (via en `data-theme="skov"`-selector i `button.tsx`, så de andre temaer ikke påvirkes)
+- Kun frontend-ændringer. Ingen DB, RLS, edge functions eller forretningslogik.
+- Ingen ændringer i `ProcessDetail.tsx` eller datahentning — vi har ingen evidens for at koden i preview er brudt.
+- Dansk UI i ErrorBoundary, genbruger `Card`, `Button` og lucide-ikoner.
 
-**Typografi**
-- Overskrifter: *Fraunces* (`font-display`)
-- Brødtekst/UI: *Inter* (allerede i appen — genbruges)
-- Installeres via `bun add @fontsource/fraunces`, importeres i `src/main.tsx`, registreres i `tailwind.config.ts` som `fontFamily.display`.
-- `font-display` klasse anvendes på sideoverskrifter (Library hero, Roadmaps, ProcessDetail, Auth) — den er neutral i andre temaer (falder tilbage til sans).
-
-**Hero-illustration**
-- Genereres som CDN-asset (`lovable-assets create`) — birketræer + skovsti i akvarel-stil.
-- Vises som baggrund i:
-  - `Library` hero-band
-  - `Auth`/`ForgotPassword`/`ResetPassword` (split-screen)
-- Kun renderet når `theme === "skov"` (conditional via `useTheme()`), så "3" og "Oister" forbliver uforandrede.
-
-## Omfang — hvor temaet slår igennem
-
-Alle komponenter bruger allerede semantiske tokens (`bg-background`, `bg-card`, `text-foreground`, `bg-primary`, …), så når `theme-skov` er aktiv, opdateres automatisk:
-
-| Område | Resultat |
-|---|---|
-| `AppLayout` + `AppSidebar` | Mørkegrøn topbjælke + sand main, sage hover på sidebar |
-| `Library` | Sand baggrund, creme kort, hero-illustration som backdrop |
-| `ProcessDetail` | Sand baggrund, creme indholdskort, forest knapper |
-| `Roadmaps` + `RoadmapDetail` | Birkebark-borders, creme kanban-kort, sage status-prik |
-| `Knowledge`, `UploadImprove`, `Admin`, `AccountSettings` | Samme palet, samme rolige vibe |
-| `Auth`-sider | Splitscreen med skov-illustration |
-| Dark mode | Skov-deep baggrund, creme tekst, dæmpede sage-accenter |
-
-## Tekniske ændringer
-
-- `src/lib/theme.tsx` — udvid Brand-type + persisteret validering.
-- `src/components/layout/AppLayout.tsx` — tilføj "Skov"-knap i brand-vælgeren.
-- `src/index.css` — nye `.theme-skov` + `.theme-skov.dark` token-blokke (eksisterende `.theme-3` og `.theme-oister` røres ikke).
-- `tailwind.config.ts` — registrér `fontFamily.display: ["Fraunces", "serif"]`.
-- `src/main.tsx` — `import "@fontsource/fraunces"`.
-- `src/components/ui/button.tsx` — pille-radius variant scoped via `:where(.theme-skov) &` så den kun gælder skov-temaet.
-- Asset: `src/assets/forest-hero.png.asset.json` via `lovable-assets`.
-- Conditional hero-illustration i `Library.tsx` + `Auth.tsx` baseret på `useTheme().brand === "skov"`.
-
-Ingen ændringer i datamodel, RLS, edge functions eller forretningslogik. "3" og "Oister" forbliver præcis som i dag — det er rent additivt.
-
-## Designretninger først?
-
-Jeg implementerer skov-temaet direkte ud fra ovenstående palet/typografi. Hvis du vil have 3 alternative skov-retninger at vælge imellem (fx mere dæmpet, mere illustrativ, mere minimalistisk), så sig til, så genererer jeg rendrede previews først.
+Hvis problemet fortsætter efter republicering, bruger vi ErrorBoundary-outputtet til at finde den faktiske rod og fixer den i en opfølgning.
