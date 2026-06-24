@@ -12,8 +12,9 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { Plus, Map as MapIcon, Trash2 } from "lucide-react";
+import { Plus, Map as MapIcon, Trash2, Mic } from "lucide-react";
 import { toast } from "sonner";
+import { VoiceRoadmapDialog } from "@/components/roadmap/VoiceRoadmapDialog";
 
 type ColumnType = "quarters" | "steps" | "months" | "custom";
 
@@ -45,6 +46,7 @@ export default function Roadmaps() {
   const [type, setType] = useState<ColumnType>("quarters");
   const [year, setYear] = useState(new Date().getFullYear());
   const [saving, setSaving] = useState(false);
+  const [voiceOpen, setVoiceOpen] = useState(false);
 
   const load = async () => {
     const { data: rmps } = await supabase
@@ -104,6 +106,10 @@ export default function Roadmaps() {
           <h1 className="text-2xl font-semibold">Roadmaps</h1>
           <p className="text-sm text-muted-foreground">Visuelle roadmaps og projektmaps for dine processer.</p>
         </div>
+        <div className="flex items-center gap-2">
+        <Button variant="outline" onClick={() => setVoiceOpen(true)}>
+          <Mic className="mr-2 h-4 w-4" /> Diktér roadmap
+        </Button>
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
             <Button><Plus className="mr-2 h-4 w-4" /> Nyt roadmap</Button>
@@ -147,7 +153,10 @@ export default function Roadmaps() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
+
+      <VoiceRoadmapDialog open={voiceOpen} onOpenChange={setVoiceOpen} />
 
       {rows.length === 0 ? (
         <Card>
