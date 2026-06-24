@@ -187,7 +187,7 @@ export function PartyOverlay({ open, onClose }: PartyOverlayProps) {
             }}
           />
           <div
-            className="relative h-56 w-56 overflow-hidden rounded-full bg-slate-800 party-ball-spin shadow-2xl"
+            className="relative h-56 w-56 overflow-hidden rounded-full bg-slate-800 shadow-2xl"
             style={{
               backgroundImage:
                 "radial-gradient(circle at 35% 30%, rgba(255,255,255,0.5), rgba(0,0,0,0.6) 70%)",
