@@ -256,6 +256,90 @@ export type Database = {
           },
         ]
       }
+      roadmap_cards: {
+        Row: {
+          column_id: string
+          created_at: string
+          description: string | null
+          id: string
+          order: number
+          process_id: string | null
+          roadmap_id: string
+          status: string | null
+          title: string
+        }
+        Insert: {
+          column_id: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          order?: number
+          process_id?: string | null
+          roadmap_id: string
+          status?: string | null
+          title: string
+        }
+        Update: {
+          column_id?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          order?: number
+          process_id?: string | null
+          roadmap_id?: string
+          status?: string | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "roadmap_cards_process_id_fkey"
+            columns: ["process_id"]
+            isOneToOne: false
+            referencedRelation: "processes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "roadmap_cards_roadmap_id_fkey"
+            columns: ["roadmap_id"]
+            isOneToOne: false
+            referencedRelation: "roadmaps"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      roadmaps: {
+        Row: {
+          column_type: string
+          columns: Json
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          column_type?: string
+          columns?: Json
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          column_type?: string
+          columns?: Json
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       uploads: {
         Row: {
           created_at: string
