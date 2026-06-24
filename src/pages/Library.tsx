@@ -16,6 +16,8 @@ import { LibraryStats } from "@/components/library/LibraryStats";
 import { QuickUploadDialog } from "@/components/library/QuickUploadDialog";
 import { VoiceProcessDialog, type VoiceProcessResult } from "@/components/library/VoiceProcessDialog";
 import { useUserPrefs } from "@/hooks/useUserPrefs";
+import { useTheme } from "@/lib/theme";
+import forestHero from "@/assets/forest-hero.jpg";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -46,6 +48,7 @@ interface Row {
 
 export default function Library() {
   const { departments, isAdmin, myDepartmentName, role, profile } = useAuth();
+  const { brand } = useTheme();
   const canManage = role === "admin" || role === "process_owner";
   const canEdit = role === "admin" || role === "process_owner" || role === "editor";
   const [rows, setRows] = useState<Row[]>([]);
@@ -153,9 +156,32 @@ export default function Library() {
 
   return (
     <div className="space-y-6 max-w-6xl">
+      {brand === "skov" && (
+        <div className="relative overflow-hidden rounded-[var(--radius)] border bg-card shadow-card">
+          <img
+            src={forestHero}
+            alt=""
+            aria-hidden="true"
+            className="h-44 w-full object-cover sm:h-56"
+            loading="eager"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-card via-card/60 to-transparent" />
+          <div className="absolute bottom-0 left-0 right-0 p-5 sm:p-7">
+            <h1 className="font-display text-3xl sm:text-4xl font-medium text-foreground">
+              Procesbibliotek
+            </h1>
+            <p className="mt-1 max-w-xl text-sm text-muted-foreground">
+              {isAdmin
+                ? "Du ser alle processer på tværs af afdelinger."
+                : `Du ser processer i din afdeling (${myDepartmentName ?? "ingen tildelt"}) samt delte processer.`}
+            </p>
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold">Procesbibliotek</h1>
+        <div className={brand === "skov" ? "sr-only" : ""}>
+          <h1 className="text-2xl font-bold font-display">Procesbibliotek</h1>
           <p className="text-sm text-muted-foreground">
             {isAdmin
               ? "Du ser alle processer på tværs af afdelinger."

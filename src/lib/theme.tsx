@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 
-export type Brand = "3" | "oister";
+export type Brand = "3" | "oister" | "skov";
 export type Mode = "light" | "dark";
 
 interface ThemeCtx {
@@ -20,7 +20,10 @@ function load(): { brand: Brand; mode: Mode } {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
       const p = JSON.parse(raw);
-      if ((p.brand === "3" || p.brand === "oister") && (p.mode === "light" || p.mode === "dark")) {
+      if (
+        (p.brand === "3" || p.brand === "oister" || p.brand === "skov") &&
+        (p.mode === "light" || p.mode === "dark")
+      ) {
         return p;
       }
     }
@@ -35,7 +38,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const root = document.documentElement;
-    root.classList.remove("theme-3", "theme-oister", "light", "dark");
+    root.classList.remove("theme-3", "theme-oister", "theme-skov", "light", "dark");
     root.classList.add(`theme-${brand}`, mode);
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({ brand, mode }));
