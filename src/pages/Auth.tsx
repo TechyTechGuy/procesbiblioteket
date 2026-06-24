@@ -9,10 +9,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth";
+import { useTheme } from "@/lib/theme";
+import forestHero from "@/assets/forest-hero.jpg";
 
 export default function Auth() {
   const navigate = useNavigate();
   const { user, departments } = useAuth();
+  const { brand } = useTheme();
   const [loading, setLoading] = useState(false);
 
   const [loginEmail, setLoginEmail] = useState("");
@@ -68,8 +71,27 @@ export default function Auth() {
     toast.success("Konto oprettet — tjek din email for at bekræfte");
   };
 
+  const isSkov = brand === "skov";
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-subtle p-4">
+    <div className="min-h-screen flex bg-gradient-subtle">
+      {isSkov && (
+        <div className="hidden lg:block relative w-1/2">
+          <img
+            src={forestHero}
+            alt=""
+            aria-hidden="true"
+            className="absolute inset-0 h-full w-full object-cover"
+          />
+          <div className="absolute inset-0 bg-gradient-to-r from-transparent to-background/40" />
+          <div className="relative z-10 flex h-full flex-col justify-end p-10">
+            <h2 className="font-display text-4xl font-medium text-foreground max-w-md">
+              Ét sted. Hver proces. Hele teamet — på samme side.
+            </h2>
+          </div>
+        </div>
+      )}
+    <div className={`flex flex-1 items-center justify-center p-4 ${isSkov ? "lg:w-1/2" : ""}`}>
       <Card className="w-full max-w-md shadow-elegant">
         <CardHeader className="text-center">
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-[10px] shadow-elegant mb-2" style={{ backgroundColor: "#0F172A" }}>
@@ -130,6 +152,7 @@ export default function Auth() {
           </Tabs>
         </CardContent>
       </Card>
+    </div>
     </div>
   );
 }
