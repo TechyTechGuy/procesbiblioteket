@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
   DndContext, DragEndEvent, DragOverlay, DragStartEvent, KeyboardSensor,
-  PointerSensor, closestCorners, useSensor, useSensors,
+  PointerSensor, closestCorners, useDroppable, useSensor, useSensors,
 } from "@dnd-kit/core";
 import {
   SortableContext, arrayMove, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy,
@@ -110,7 +110,7 @@ function ColumnView({
   canMoveLeft: boolean;
   canMoveRight: boolean;
 }) {
-  const { setNodeRef } = useSortable({ id: `col:${column.id}`, data: { type: "column", columnId: column.id } });
+  const { setNodeRef } = useDroppable({ id: `col:${column.id}`, data: { type: "column", columnId: column.id } });
   const [editing, setEditing] = useState(false);
   const [label, setLabel] = useState(column.label);
   useEffect(() => setLabel(column.label), [column.label]);
