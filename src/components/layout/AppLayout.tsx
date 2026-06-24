@@ -4,7 +4,7 @@ import { AppSidebar } from "./AppSidebar";
 import { useAuth } from "@/lib/auth";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ShieldCheck, LogOut, Sun, Moon, Disc3 } from "lucide-react";
+import { ShieldCheck, LogOut, Sun, Moon, Disc3, Trees } from "lucide-react";
 import { ROLE_LABEL } from "@/lib/types";
 import { useNavigate } from "react-router-dom";
 import { useTheme } from "@/lib/theme";
@@ -38,12 +38,15 @@ export function AppLayout({ children }: { children: ReactNode }) {
               <ToggleGroup
                 type="single"
                 value={brand}
-                onValueChange={(v) => v && setBrand(v as "3" | "oister")}
+                onValueChange={(v) => v && setBrand(v as "3" | "oister" | "skov")}
                 size="sm"
                 className="hidden sm:flex"
               >
                 <ToggleGroupItem value="3" className="h-7 px-2 text-xs">3</ToggleGroupItem>
                 <ToggleGroupItem value="oister" className="h-7 px-2 text-xs">Oister</ToggleGroupItem>
+                <ToggleGroupItem value="skov" className="h-7 px-2 text-xs gap-1" aria-label="Skov">
+                  <Trees className="h-3.5 w-3.5" />Skov
+                </ToggleGroupItem>
               </ToggleGroup>
               <Button variant="ghost" size="icon" onClick={toggleMode} aria-label="Skift tema" className="h-8 w-8">
                 {mode === "light" ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
