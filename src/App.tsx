@@ -20,6 +20,7 @@ import { AuthProvider } from "./lib/auth";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { AppLayout } from "./components/layout/AppLayout";
 import { ThemeProvider } from "./lib/theme";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 
 const queryClient = new QueryClient();
 
@@ -40,6 +41,7 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <AppLayout>
+                    <ErrorBoundary>
                     <Routes>
                       <Route path="/" element={<Library />} />
                       <Route path="/upload" element={<UploadImprove />} />
@@ -53,6 +55,7 @@ const App = () => (
                       <Route path="/account" element={<AccountSettings />} />
                       <Route path="*" element={<NotFound />} />
                     </Routes>
+                    </ErrorBoundary>
                   </AppLayout>
                 </ProtectedRoute>
               }
