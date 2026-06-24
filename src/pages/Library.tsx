@@ -12,7 +12,6 @@ import { QualityMeter } from "@/components/QualityMeter";
 import { supabase } from "@/integrations/supabase/client";
 import { Status, STATUSES } from "@/lib/types";
 import { toast } from "sonner";
-import { LibraryStats } from "@/components/library/LibraryStats";
 import { QuickUploadDialog } from "@/components/library/QuickUploadDialog";
 import { VoiceProcessDialog, type VoiceProcessResult } from "@/components/library/VoiceProcessDialog";
 import { useUserPrefs } from "@/hooks/useUserPrefs";
@@ -211,8 +210,6 @@ export default function Library() {
           </div>
         </div>
       </div>
-
-      <LibraryStats rows={activeRows} />
 
       <div className="flex flex-col gap-2 sm:flex-row">
         <div className="relative flex-1">

@@ -54,6 +54,8 @@ export default function ProcessDetail() {
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const contentRef = useRef<HTMLDivElement | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const [pendingCursor, setPendingCursor] = useState<number | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiSuggestion, setAiSuggestion] = useState<string>("");
 
@@ -177,6 +179,49 @@ export default function ProcessDetail() {
     toast.success("Forslag indsat — husk at gemme");
   };
 
+  const handleDoubleClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!editable || isEditing) return;
+    // Extract the word the user double-clicked (browsers auto-select it on dblclick).
+    const sel = window.getSelection();
+    const word = sel?.toString().trim() ?? "";
+    let offset = 0;
+    if (word && word.length >= 2) {
+      // Find clicked word in raw markdown; try to pick the occurrence closest to
+      // the click position by counting previous matches before the anchor node.
+      const anchorNode = sel?.anchorNode;
+      let preText = "";
+      if (anchorNode && contentRef.current) {
+        const walker = document.createTreeWalker(contentRef.current, NodeFilter.SHOW_TEXT);
+        let node: Node | null;
+        while ((node = walker.nextNode())) {
+          if (node === anchorNode) break;
+          preText += node.textContent ?? "";
+        }
+      }
+      const occurrencesBefore = preText.split(word).length - 1;
+      let idx = -1;
+      let from = 0;
+      for (let i = 0; i <= occurrencesBefore; i++) {
+        idx = content.indexOf(word, from);
+        if (idx === -1) break;
+        from = idx + word.length;
+      }
+      if (idx >= 0) offset = idx + Math.floor(word.length / 2);
+    }
+    setPendingCursor(offset);
+    setIsEditing(true);
+  };
+
+  useEffect(() => {
+    if (isEditing && pendingCursor !== null && textareaRef.current) {
+      const ta = textareaRef.current;
+      ta.focus();
+      const pos = Math.min(pendingCursor, ta.value.length);
+      ta.setSelectionRange(pos, pos);
+      setPendingCursor(null);
+    }
+  }, [isEditing, pendingCursor]);
+
   return (
     <div className="space-y-4 max-w-7xl">
       <Button variant="ghost" size="sm" onClick={() => navigate("/library")}><ArrowLeft className="mr-2 h-4 w-4" />Tilbage til bibliotek</Button>
@@ -215,6 +260,7 @@ export default function ProcessDetail() {
             )}
             {isEditing ? (
               <Textarea
+                ref={textareaRef}
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
                 rows={20}
@@ -222,7 +268,12 @@ export default function ProcessDetail() {
                 disabled={!editable}
               />
             ) : (
-              <div ref={contentRef} className={proseClasses}>
+              <div
+                ref={contentRef}
+                className={proseClasses + (editable ? " cursor-text" : "")}
+                onDoubleClick={handleDoubleClick}
+                title={editable ? "Dobbeltklik for at redigere" : undefined}
+              >
                 {content.trim() ? (
                   <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
                 ) : (
