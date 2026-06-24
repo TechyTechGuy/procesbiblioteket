@@ -76,6 +76,16 @@ export default function ProcessDetail() {
 
   useEffect(() => { load(); }, [id]);
 
+  useEffect(() => {
+    if (isEditing && pendingCursor !== null && textareaRef.current) {
+      const ta = textareaRef.current;
+      ta.focus();
+      const pos = Math.min(pendingCursor, ta.value.length);
+      ta.setSelectionRange(pos, pos);
+      setPendingCursor(null);
+    }
+  }, [isEditing, pendingCursor]);
+
   if (loading) return <p className="p-6 text-sm text-muted-foreground">Indlæser...</p>;
 
   if (notFound || !process) {
@@ -211,16 +221,6 @@ export default function ProcessDetail() {
     setPendingCursor(offset);
     setIsEditing(true);
   };
-
-  useEffect(() => {
-    if (isEditing && pendingCursor !== null && textareaRef.current) {
-      const ta = textareaRef.current;
-      ta.focus();
-      const pos = Math.min(pendingCursor, ta.value.length);
-      ta.setSelectionRange(pos, pos);
-      setPendingCursor(null);
-    }
-  }, [isEditing, pendingCursor]);
 
   return (
     <div className="space-y-4 max-w-7xl">
