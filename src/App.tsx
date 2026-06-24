@@ -8,6 +8,8 @@ import UploadImprove from "./pages/UploadImprove";
 import Library from "./pages/Library";
 import ProcessDetail from "./pages/ProcessDetail";
 import Knowledge from "./pages/Knowledge";
+import Roadmaps from "./pages/Roadmaps";
+import RoadmapDetail from "./pages/RoadmapDetail";
 import Admin from "./pages/Admin";
 import Auth from "./pages/Auth";
 import ForgotPassword from "./pages/ForgotPassword";
@@ -43,6 +45,8 @@ const App = () => (
                       <Route path="/library" element={<Library />} />
                       <Route path="/process/:id" element={<ProcessDetail />} />
                       <Route path="/knowledge" element={<Knowledge />} />
+                      <Route path="/roadmaps" element={<Roadmaps />} />
+                      <Route path="/roadmaps/:id" element={<RoadmapDetail />} />
                       <Route path="/admin" element={<Admin />} />
                       <Route path="/account" element={<AccountSettings />} />
                       <Route path="*" element={<NotFound />} />
